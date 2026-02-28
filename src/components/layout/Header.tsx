@@ -3,7 +3,7 @@
 import { useApex } from "@/context/ApexContext";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Hexagon, LogOut, Bell } from "lucide-react";
+import { Hexagon } from "lucide-react";
 
 export function Header() {
   const { activeWorkspace, workspaces, setActiveWorkspace } = useApex();
@@ -47,9 +47,6 @@ export function Header() {
           </div>
           
           <nav className="flex items-center space-x-4 ml-6 pl-6 border-l border-border">
-            <button className="text-muted-foreground hover:text-foreground transition-colors">
-              <Bell className="h-5 w-5" />
-            </button>
             <div className="h-8 w-8 rounded-full bg-workspace/20 border border-workspace/30 flex items-center justify-center">
               <span className="text-xs font-bold text-workspace">DF</span>
             </div>

@@ -3,42 +3,67 @@
 import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DownloadCloud, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ReportsPage() {
   const { transactions, activeWorkspace } = useApex();
   const isProf = activeWorkspace.is_professional;
   const accentColor = isProf ? "#3b82f6" : "#10b981"; // blue-500 : emerald-500
 
-  // Calculate monthly aggregates
-  const monthlyData = useMemo(() => {
-    const months: Record<string, { income: number; expenses: number; name: string }> = {};
+  const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month'>('month');
+
+  // Calculate aggregated data based on filter
+  const chartData = useMemo(() => {
+    const data: Record<string, { income: number; expenses: number; name: string; timestamp: number }> = {};
+    const now = new Date();
     
-    // Process all transactions
     transactions.forEach(tx => {
-      const monthKey = `${tx.date.getFullYear()}-${tx.date.getMonth()}`;
-      const monthName = tx.date.toLocaleString('default', { month: 'short' });
+      let key = "";
+      let name = "";
+      const txDate = new Date(tx.date);
+
+      if (filterRange === 'day') {
+        // Only last 14 days
+        const diffDays = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays > 14) return;
+        key = txDate.toISOString().split('T')[0];
+        name = txDate.toLocaleDateString('default', { day: '2-digit', month: 'short' });
+      } else if (filterRange === 'week') {
+        // Last 8 weeks
+        const diffWeeks = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
+        if (diffWeeks > 8) return;
+        const weekStart = new Date(txDate);
+        weekStart.setDate(txDate.getDate() - txDate.getDay());
+        key = weekStart.toISOString().split('T')[0];
+        name = `W${Math.ceil(txDate.getDate() / 7)} ${txDate.toLocaleString('default', { month: 'short' })}`;
+      } else {
+        // Last 12 months
+        key = `${txDate.getFullYear()}-${txDate.getMonth()}`;
+        name = txDate.toLocaleString('default', { month: 'short' });
+      }
       
-      if (!months[monthKey]) {
-         months[monthKey] = { income: 0, expenses: 0, name: monthName };
+      if (!data[key]) {
+        data[key] = { income: 0, expenses: 0, name, timestamp: txDate.getTime() };
       }
       
       if (tx.amount > 0) {
-        months[monthKey].income += tx.amount;
+        data[key].income += tx.amount;
       } else {
-         months[monthKey].expenses += Math.abs(tx.amount);
+        data[key].expenses += Math.abs(tx.amount);
       }
     });
 
-    // Convert to sorted array
-    return Object.values(months).map(m => ({
-       name: m.name,
-       Income: m.income,
-       Expenses: m.expenses
-    }));
-  }, [transactions]);
+    return Object.values(data)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map(m => ({
+        name: m.name,
+        Income: m.income,
+        Expenses: m.expenses
+      }));
+  }, [transactions, filterRange]);
 
   // Insights Data
   const essentialRatio = useMemo(() => {
@@ -57,22 +82,31 @@ export default function ReportsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Financial Intelligence Reports</h1>
           <p className="text-muted-foreground mt-1">Deep dive analytics and historical performance.</p>
         </div>
-        <Button variant="outline" className="shrink-0 bg-background/50 border-workspace/30 text-workspace hover:bg-workspace hover:text-white transition-colors">
-          <DownloadCloud className="h-4 w-4 mr-2" />
-          Export Datasets (CSV)
-        </Button>
+        <div className="flex items-center gap-4">
+          <Tabs value={filterRange} onValueChange={(v) => setFilterRange(v as 'day' | 'week' | 'month')} className="bg-background/50 p-1 rounded-lg border border-border">
+            <TabsList className="grid grid-cols-3 w-[300px] h-8">
+              <TabsTrigger value="day" className="text-xs h-7">Daily</TabsTrigger>
+              <TabsTrigger value="week" className="text-xs h-7">Weekly</TabsTrigger>
+              <TabsTrigger value="month" className="text-xs h-7">Monthly</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button variant="outline" className="shrink-0 bg-background/50 border-workspace/30 text-workspace hover:bg-workspace hover:text-white transition-colors">
+            <DownloadCloud className="h-4 w-4 mr-2" />
+            Export (CSV)
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">
         <Card className="glass-panel md:col-span-3">
           <CardHeader>
-             <CardTitle className="text-lg">Income vs. Expenses</CardTitle>
-             <CardDescription>Monthly aggregated cash flow comparison</CardDescription>
+             <CardTitle className="text-lg">Financial Performance</CardTitle>
+             <CardDescription>Aggregated cash flow analysis - Zoom: {filterRange.toUpperCase()}</CardDescription>
           </CardHeader>
           <CardContent>
              <div className="h-[400px] w-full mt-4">
                <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                    <XAxis 
                      dataKey="name" 

@@ -22,7 +22,13 @@ export default function GoalsPage() {
         <Card className="glass-panel text-center py-12">
           <Target className="h-12 w-12 mx-auto text-muted-foreground opacity-50 mb-4" />
           <h3 className="text-lg font-medium">No active goals</h3>
-          <p className="text-muted-foreground mt-2">Create a new financial goal to start tracking.</p>
+          <p className="text-muted-foreground mt-2 mb-6">Create a new financial goal to start tracking.</p>
+          <GoalDialog>
+            <Button className="bg-workspace hover:bg-workspace/90 text-white mx-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Your First Goal
+            </Button>
+          </GoalDialog>
         </Card>
       </div>
     );
