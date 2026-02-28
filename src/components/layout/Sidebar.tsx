@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { LayoutDashboard, Receipt, BarChart3, Target, Sparkles, Boxes } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,19 +15,20 @@ const items = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
-    <div className="w-64 border-r border-border bg-background pt-6 shrink-0 hidden md:block transition-colors-all flex flex-col h-full relative z-20">
+    <div className="w-64 border-r border-border bg-background pt-6 shrink-0 hidden md:block flex flex-col h-full relative z-30">
       <nav className="flex flex-col gap-2 px-4 flex-1">
         {items.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
           return (
-            <Link
+            <button
               key={item.href}
-              href={item.href}
+              onClick={() => router.push(item.href)}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors w-full text-left",
                 isActive
                   ? "bg-workspace/10 text-workspace"
                   : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -36,7 +36,7 @@ export function Sidebar() {
             >
               <Icon className="h-5 w-5" />
               {item.label}
-            </Link>
+            </button>
           );
         })}
       </nav>
