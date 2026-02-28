@@ -36,8 +36,10 @@ export const workspaces = pgTable('workspaces', {
 export const categories = pgTable('categories', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   workspace_id: integer('workspace_id').references(() => workspaces.id),
+  parent_id: integer('parent_id').references(() => categories.id),
   name: text('name').notNull(),
   monthly_budget: numeric('monthly_budget'),
+  is_project: boolean('is_project').default(false),
 });
 
 export const transactions = pgTable('transactions', {
@@ -78,6 +80,14 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
   workspace: one(workspaces, {
     fields: [categories.workspace_id],
     references: [workspaces.id],
+  }),
+  parent: one(categories, {
+    fields: [categories.parent_id],
+    references: [categories.id],
+    relationName: 'category_to_subcategory',
+  }),
+  children: many(categories, {
+    relationName: 'category_to_subcategory',
   }),
   transactions: many(transactions),
 }));

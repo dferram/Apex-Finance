@@ -4,18 +4,22 @@ import { useState } from "react";
 import { useApex } from "@/context/ApexContext";
 import { createCategory } from "@/app/actions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 
-export function CategoryDialog({ children }: { children?: React.ReactNode }) {
-  const { activeWorkspace } = useApex();
+export function CategoryDialog({ children, initialParentId }: { children?: React.ReactNode, initialParentId?: number }) {
+  const { activeWorkspace, categories } = useApex();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [budget, setBudget] = useState("");
+  const [parentId, setParentId] = useState<string>(initialParentId?.toString() || "root");
+  const [isProject, setIsProject] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,12 +32,16 @@ export function CategoryDialog({ children }: { children?: React.ReactNode }) {
         workspace_id: activeWorkspace.id,
         name,
         monthly_budget: budget ? Number(budget) : undefined,
+        parent_id: parentId === "root" ? undefined : Number(parentId),
+        is_project: isProject,
       });
 
       if (result.success) {
         setOpen(false);
         setName("");
         setBudget("");
+        setParentId("root");
+        setIsProject(false);
       }
     } catch (error) {
       console.error(error);
@@ -80,6 +88,35 @@ export function CategoryDialog({ children }: { children?: React.ReactNode }) {
               step="0.01"
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="parent">Categoría Padre (Opcional)</Label>
+            <Select value={parentId} onValueChange={setParentId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Ninguna (Categoría Raíz)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="root">Ninguna (Categoría Raíz)</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+            <div className="space-y-0.5">
+              <Label htmlFor="is-project">¿Es un Proyecto?</Label>
+              <p className="text-xs text-muted-foreground">Los proyectos permiten agrupar gastos estratégicos.</p>
+            </div>
+            <Switch
+              id="is-project"
+              checked={isProject}
+              onCheckedChange={setIsProject}
             />
           </div>
 

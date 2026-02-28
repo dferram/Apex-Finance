@@ -1,9 +1,14 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { workspaces, transactions, categories, financial_goals, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
+import { workspaces, transactions, categories, financial_goals, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
 import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+
+export interface CategoryNode extends Category {
+  full_path: string;
+  level: number;
+}
 
 export async function getWorkspaces() {
   try {
@@ -17,10 +22,76 @@ export async function getWorkspaces() {
 
 export async function getCategories(workspaceId: number) {
   try {
-    const data = await db.select().from(categories).where(eq(categories.workspace_id, workspaceId));
+    const data = await db.select().from(categories).where(eq(categories.workspace_id, workspaceId)).orderBy(categories.name);
     return data;
   } catch (error) {
     console.error('Error fetching categories:', error);
+    return [];
+  }
+}
+
+export async function getCategoriesHierarchical(workspaceId: number) {
+  try {
+    const data = await db.execute(sql`
+      WITH RECURSIVE category_tree AS (
+        SELECT 
+          id, 
+          workspace_id, 
+          parent_id, 
+          name, 
+          monthly_budget, 
+          is_project,
+          name::text AS full_path,
+          1 AS level
+        FROM categories
+        WHERE workspace_id = ${workspaceId} AND parent_id IS NULL
+
+        UNION ALL
+
+        SELECT 
+          c.id, 
+          c.workspace_id, 
+          c.parent_id, 
+          c.name, 
+          c.monthly_budget, 
+          c.is_project,
+          (ct.full_path || ' / ' || c.name) AS full_path,
+          ct.level + 1 AS level
+        FROM categories c
+        JOIN category_tree ct ON c.parent_id = ct.id
+      )
+      SELECT * FROM category_tree ORDER BY full_path;
+    `);
+    return data.rows as unknown as CategoryNode[];
+  } catch (error) {
+    console.error('Error fetching hierarchical categories:', error);
+    return [];
+  }
+}
+
+export async function getCategoryTotalsHierarchical(workspaceId: number) {
+  try {
+    const data = await db.execute(sql`
+      WITH RECURSIVE category_tree AS (
+        SELECT id, parent_id FROM categories WHERE workspace_id = ${workspaceId}
+      ),
+      all_descendants AS (
+        SELECT id AS root_id, id AS descendant_id FROM category_tree
+        UNION ALL
+        SELECT ad.root_id, ct.id FROM all_descendants ad
+        JOIN category_tree ct ON ad.descendant_id = ct.parent_id
+      )
+      SELECT 
+        ad.root_id as category_id,
+        SUM(CAST(t.amount AS NUMERIC)) as total_amount
+      FROM all_descendants ad
+      JOIN transactions t ON ad.descendant_id = t.category_id
+      WHERE t.workspace_id = ${workspaceId}
+      GROUP BY ad.root_id;
+    `);
+    return data.rows as { category_id: number; total_amount: string }[];
+  } catch (error) {
+    console.error('Error fetching hierarchical category totals:', error);
     return [];
   }
 }
@@ -137,12 +208,14 @@ export async function getApexStats(workspaceId: number) {
   }
 }
 
-export async function createCategory(data: { workspace_id: number; name: string; monthly_budget?: number }) {
+export async function createCategory(data: { workspace_id: number; name: string; monthly_budget?: number; parent_id?: number; is_project?: boolean }) {
   try {
     await db.insert(categories).values({
       workspace_id: data.workspace_id,
       name: data.name,
       monthly_budget: data.monthly_budget?.toString(),
+      parent_id: data.parent_id,
+      is_project: data.is_project ?? false,
     });
     revalidatePath('/');
     return { success: true };

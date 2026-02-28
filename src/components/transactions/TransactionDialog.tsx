@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 
 export function TransactionDialog({ children }: { children?: React.ReactNode }) {
-  const { activeWorkspace, categories, addOptimisticTransaction } = useApex();
+  const { activeWorkspace, categoriesHierarchical, addOptimisticTransaction } = useApex();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -43,7 +43,8 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
     addOptimisticTransaction({
       ...newTxData,
       id: Math.random() * -1000, 
-      date: new Date()
+      date: new Date(),
+      category: categoriesHierarchical.find(c => c.id === Number(categoryId)) || null
     });
 
     setOpen(false);
@@ -61,7 +62,7 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
   };
 
   const isProf = activeWorkspace?.is_professional;
-  const wsCategories = categories || [];
+  const wsCategories = categoriesHierarchical || [];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -148,8 +149,8 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
                 <SelectValue placeholder="Selecciona una categoría" />
               </SelectTrigger>
               <SelectContent>
-                {wsCategories.map((cat: { id: number; name: string }) => (
-                  <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
+                {wsCategories.map((cat: { id: number; name: string; full_path: string }) => (
+                  <SelectItem key={cat.id} value={cat.id.toString()}>{cat.full_path}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -102,7 +102,7 @@ export default function TransactionsPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={`text-xs px-2 py-0.5 rounded-sm font-medium ${tx.is_essential ? primaryBadgeColor : secondaryBadgeColor}`}>
-                        {cat?.name || "Uncategorized"}
+                        {cat?.full_path || cat?.name || "Uncategorized"}
                       </Badge>
                     </TableCell>
                     <TableCell className={`text-right font-mono text-base tracking-tight pr-6 ${amountClass}`}>

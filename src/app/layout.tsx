@@ -7,7 +7,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 
 const inter = Inter({ subsets: ["latin"] });
 
-import { getWorkspaces, getTransactions, getApexStats, getCategories, getFinancialGoals } from "@/app/actions";
+import { getWorkspaces, getTransactions, getApexStats, getCategories, getFinancialGoals, getCategoriesHierarchical, getCategoryTotalsHierarchical } from "@/app/actions";
 import { type TransactionWithCategory, type Category, type GoalWithNumbers } from "@/lib/schema";
 
 export const metadata: Metadata = {
@@ -29,12 +29,16 @@ export default async function RootLayout({
 
   let transactions: TransactionWithCategory[] = [];
   let categories: Category[] = [];
+  let categoriesHierarchical: any[] = [];
+  let categoriesHierarchicalTotals: { category_id: number; total_amount: string }[] = [];
   let stats = { totalBalance: 0, weeklyExpense: 0, totalIncome: 0, totalExpense: 0 };
 
   if (activeWorkspace) {
-    [transactions, categories, stats] = await Promise.all([
+    [transactions, categories, categoriesHierarchical, categoriesHierarchicalTotals, stats] = await Promise.all([
       getTransactions(activeWorkspace.id),
       getCategories(activeWorkspace.id),
+      getCategoriesHierarchical(activeWorkspace.id),
+      getCategoryTotalsHierarchical(activeWorkspace.id),
       getApexStats(activeWorkspace.id)
     ]);
   }
@@ -47,9 +51,10 @@ export default async function RootLayout({
           initialActiveWorkspace={activeWorkspace}
           initialTransactions={transactions}
           initialCategories={categories}
+          initialCategoriesHierarchical={categoriesHierarchical}
+          initialCategoriesHierarchicalTotals={categoriesHierarchicalTotals}
           initialStats={stats}
           initialGoals={goals}
-
         >
           <div className="relative flex min-h-screen flex-col">
             <Header />

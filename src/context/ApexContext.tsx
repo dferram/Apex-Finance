@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useOptimistic, useTransition } from "react";
-import { getTransactions, getApexStats, getCategories } from "@/app/actions";
+import { getTransactions, getApexStats, getCategories, getCategoriesHierarchical, getCategoryTotalsHierarchical, type CategoryNode } from "@/app/actions";
 import { type User, type Workspace, type Category, type TransactionWithCategory, type GoalWithNumbers } from "@/lib/schema";
 
 interface ApexStats {
@@ -17,6 +17,8 @@ interface ApexContextType {
   activeWorkspace: Workspace | null;
   setActiveWorkspace: (workspace: Workspace | null) => void;
   categories: Category[];
+  categoriesHierarchical: CategoryNode[];
+  categoriesHierarchicalTotals: { category_id: number; total_amount: string }[];
   transactions: TransactionWithCategory[];
   goals: GoalWithNumbers[];
   apexScore: number;
@@ -34,6 +36,8 @@ export function ApexProvider({
   initialActiveWorkspace = null,
   initialTransactions = [],
   initialCategories = [],
+  initialCategoriesHierarchical = [],
+  initialCategoriesHierarchicalTotals = [],
   initialStats = { totalBalance: 0, weeklyExpense: 0, totalIncome: 0, totalExpense: 0 },
   initialGoals = []
 
@@ -43,6 +47,8 @@ export function ApexProvider({
   initialActiveWorkspace?: Workspace | null;
   initialTransactions?: TransactionWithCategory[];
   initialCategories?: Category[];
+  initialCategoriesHierarchical?: CategoryNode[];
+  initialCategoriesHierarchicalTotals?: { category_id: number; total_amount: string }[];
   initialStats?: ApexStats;
   initialGoals?: GoalWithNumbers[];
 
@@ -52,6 +58,8 @@ export function ApexProvider({
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(initialActiveWorkspace);
   const [transactions, setTransactions] = useState<TransactionWithCategory[]>(initialTransactions);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [categoriesHierarchical, setCategoriesHierarchical] = useState<CategoryNode[]>(initialCategoriesHierarchical);
+  const [categoriesHierarchicalTotals, setCategoriesHierarchicalTotals] = useState<{ category_id: number; total_amount: string }[]>(initialCategoriesHierarchicalTotals);
   const [stats, setStats] = useState<ApexStats>(initialStats);
   const [goals] = useState<GoalWithNumbers[]>(initialGoals);      
   
@@ -70,16 +78,20 @@ export function ApexProvider({
       if (workspace) {
         setActiveWorkspace(workspace);
         
-        const [txs, newStats, newCats] = await Promise.all([
+        const [txs, newStats, newCats, newCatsHier, newTotals] = await Promise.all([
           getTransactions(id),
           getApexStats(id),
-          getCategories(id)
+          getCategories(id),
+          getCategoriesHierarchical(id),
+          getCategoryTotalsHierarchical(id)
         ]);
         
         startTransitionSwitch(() => {
           setTransactions(txs);
           setStats(newStats);
           setCategories(newCats);
+          setCategoriesHierarchical(newCatsHier);
+          setCategoriesHierarchicalTotals(newTotals);
         });
       }
     } catch (e) {
@@ -130,6 +142,8 @@ export function ApexProvider({
     activeWorkspace,
     setActiveWorkspace,
     categories,
+    categoriesHierarchical,
+    categoriesHierarchicalTotals,
     transactions: optimisticTransactions,
     goals,
     apexScore,

@@ -2,22 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Target, Wallet, Lightbulb } from "lucide-react";
+import { LayoutDashboard, Receipt, BarChart3, Target, Sparkles, Boxes } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/transactions", label: "Transactions", icon: Wallet },
-  { href: "/reports", label: "Reports", icon: FileText },
-  { href: "/goals", label: "Financial Goals", icon: Target },
-  { href: "/insights", label: "Apex Insights", icon: Lightbulb },
+  { label: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { label: "Transactions", icon: Receipt, href: "/transactions" },
+  { label: "Reports", icon: BarChart3, href: "/reports" },
+  { label: "Categories", icon: Boxes, href: "/categories" },
+  { label: "Financial Goals", icon: Target, href: "/goals" },
+  { label: "Apex Insights", icon: Sparkles, href: "/insights" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="w-64 border-r border-border bg-background pt-6 shrink-0 hidden md:block transition-colors-all flex flex-col h-full relative">
+    <div className="w-64 border-r border-border bg-background pt-6 shrink-0 hidden md:block transition-colors-all flex flex-col h-full relative z-20">
       <nav className="flex flex-col gap-2 px-4 flex-1">
         {items.map((item) => {
           const isActive = pathname === item.href;
@@ -27,7 +28,7 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-workspace/10 text-workspace"
                   : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
