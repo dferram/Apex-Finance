@@ -134,3 +134,35 @@ export async function getApexStats(workspaceId: number) {
     };
   }
 }
+
+export async function createCategory(data: { workspace_id: number; name: string; monthly_budget?: number }) {
+  try {
+    await db.insert(categories).values({
+      workspace_id: data.workspace_id,
+      name: data.name,
+      monthly_budget: data.monthly_budget?.toString(),
+    });
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Error creating category:', error);
+    return { success: false, error: 'Could not create category' };
+  }
+}
+
+export async function createFinancialGoal(data: { user_id: number; name: string; target_amount: number; deadline?: Date }) {
+  try {
+    await db.insert(financial_goals).values({
+      user_id: data.user_id,
+      name: data.name,
+      target_amount: data.target_amount.toString(),
+      current_amount: '0',
+      deadline: data.deadline,
+    });
+    revalidatePath('/goals');
+    return { success: true };
+  } catch (error) {
+    console.error('Error creating goal:', error);
+    return { success: false, error: 'Could not create goal' };
+  }
+}

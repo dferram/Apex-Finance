@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Filter } from "lucide-react";
 import { TransactionDialog } from "@/components/transactions/TransactionDialog";
+import { CategoryDialog } from "@/components/transactions/CategoryDialog";
 
 export default function TransactionsPage() {
   const { transactions, categories, activeWorkspace } = useApex();
@@ -57,10 +58,13 @@ export default function TransactionsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="shrink-0 bg-background/50">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter by Category
-          </Button>
+          <div className="flex items-center gap-2">
+            <CategoryDialog />
+            <Button variant="outline" className="shrink-0 bg-background/50">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter by Category
+            </Button>
+          </div>
         </div>
 
         <Table>

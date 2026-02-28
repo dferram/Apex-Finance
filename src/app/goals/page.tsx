@@ -2,15 +2,15 @@
 
 import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Target, TrendingUp, Calendar, AlertCircle } from "lucide-react";
+import { Target, TrendingUp, Calendar, AlertCircle, Plus } from "lucide-react";
 import { format } from "date-fns";
+import { GoalDialog } from "@/components/goals/GoalDialog";
+import { Button } from "@/components/ui/button";
 
 export default function GoalsPage() {
   const { goals, activeWorkspace } = useApex();
   const isProf = activeWorkspace.is_professional;
   const accentColor = isProf ? "bg-blue-500" : "bg-emerald-500";
-  const iconColor = isProf ? "text-blue-500" : "text-emerald-500";
 
   if (goals.length === 0) {
     return (
@@ -37,6 +37,12 @@ export default function GoalsPage() {
             {isProf ? "Corporate milestones and runway targets." : "Personal savings and investment goals."}
           </p>
         </div>
+        <GoalDialog>
+          <Button className="bg-workspace hover:bg-workspace/90 text-white shrink-0">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Objective
+          </Button>
+        </GoalDialog>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

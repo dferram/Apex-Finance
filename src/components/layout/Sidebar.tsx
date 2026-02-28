@@ -17,8 +17,8 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="w-64 border-r border-border bg-background pt-6 shrink-0 hidden md:block transition-colors-all">
-      <nav className="flex flex-col gap-2 px-4">
+    <div className="w-64 border-r border-border bg-background pt-6 shrink-0 hidden md:block transition-colors-all flex flex-col h-full relative">
+      <nav className="flex flex-col gap-2 px-4 flex-1">
         {items.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -40,7 +40,7 @@ export function Sidebar() {
         })}
       </nav>
       
-      <div className="absolute bottom-6 left-6 right-6">
+      <div className="mt-auto p-6">
          <div className="rounded-lg p-4 bg-workspace/5 border border-workspace/10 shadow-sm">
            <h4 className="text-xs font-semibold uppercase text-workspace mb-1 tracking-wider">Apex Status</h4>
            <div className="flex items-center gap-2">
