@@ -28,19 +28,19 @@ export function Header() {
           <div className="flex items-center space-x-4 bg-muted/50 px-4 py-1.5 rounded-full border border-border/50">
             <Label 
               htmlFor="workspace-mode" 
-              className={`text-sm cursor-pointer transition-colors ${!activeWorkspace.is_professional ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+              className={`text-sm cursor-pointer transition-colors ${!activeWorkspace?.is_professional ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
             >
               Personal
             </Label>
             <Switch
               id="workspace-mode"
-              checked={activeWorkspace.is_professional}
+              checked={activeWorkspace?.is_professional || false}
               onCheckedChange={handleToggle}
               className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-emerald-600 dark:data-[state=unchecked]:bg-emerald-500"
             />
             <Label 
               htmlFor="workspace-mode" 
-              className={`text-sm cursor-pointer transition-colors ${activeWorkspace.is_professional ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
+              className={`text-sm cursor-pointer transition-colors ${activeWorkspace?.is_professional ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
             >
               xCore
             </Label>

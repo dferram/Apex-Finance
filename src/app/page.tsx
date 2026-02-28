@@ -3,6 +3,9 @@ import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
 import { CategoryDonut } from "@/components/dashboard/CategoryDonut";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ApexInsights } from "@/components/insights/ApexInsights";
+import { TransactionDialog } from "@/components/transactions/TransactionDialog";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
   return (
@@ -12,6 +15,12 @@ export default function Dashboard() {
            <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
            <p className="text-muted-foreground mt-1">Real-time financial telemetry</p>
          </div>
+         <TransactionDialog>
+           <Button className="bg-workspace hover:bg-workspace/90 text-white shrink-0">
+             <Plus className="h-4 w-4 mr-2" />
+             Add Transaction
+           </Button>
+         </TransactionDialog>
       </div>
       
       <KPICards />

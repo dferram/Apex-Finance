@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Filter } from "lucide-react";
+import { TransactionDialog } from "@/components/transactions/TransactionDialog";
 
 export default function TransactionsPage() {
   const { transactions, categories, activeWorkspace } = useApex();
@@ -37,10 +38,12 @@ export default function TransactionsPage() {
             Complete transaction history for {isProf ? "xCore Engineering" : "Personal Track"}
           </p>
         </div>
-        <Button className="bg-workspace hover:bg-workspace/90 text-white shrink-0">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Transaction
-        </Button>
+        <TransactionDialog>
+          <Button className="bg-workspace hover:bg-workspace/90 text-white shrink-0">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Transaction
+          </Button>
+        </TransactionDialog>
       </div>
 
       <div className="glass-panel rounded-xl overflow-hidden border border-border">
