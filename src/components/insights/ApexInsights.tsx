@@ -1,69 +1,90 @@
 "use client";
 
 import { useApex } from "@/context/ApexContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lightbulb, Info, AlertTriangle, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useMemo } from "react";
 
 export function ApexInsights() {
-  const { activeWorkspace, apexScore, transactions, goals } = useApex();
+  const { activeWorkspace, apexScore, transactions, goals, stats } = useApex();
 
   const insights = useMemo(() => {
     const list = [];
-    const isProf = activeWorkspace.is_professional;
+    const isProf = activeWorkspace?.is_professional ?? false;
     
-    // Core Insights based on mode
-    if (isProf) {
-      if (apexScore < 70) {
+    // 1. Spending velocity (Day by day analysis)
+    const now = new Date();
+    const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const last7DaysTxs = transactions.filter(t => t.date && new Date(t.date) >= last7Days && t.amount < 0);
+    const weekSpend = Math.abs(last7DaysTxs.reduce((acc, curr) => acc + curr.amount, 0));
+    
+    if (weekSpend > 0) {
+      if (isProf) {
         list.push({
-          type: "warning",
-          title: "High Burn Rate Detected",
-          description: "Current burn rate is accelerating. Consider reviewing non-essential marketing spend to extend runway by 1.5 months.",
-          icon: AlertTriangle
+          type: "info",
+          title: "Operating Burn",
+          description: `You've spent $${weekSpend.toLocaleString()} in operations this week. This is ${apexScore > 80 ? "well managed" : "higher than ideal"}.`,
+          icon: TrendingUp
         });
       } else {
         list.push({
-          type: "success",
-          title: "Runway Stable",
-          description: "Burn rate is well within acceptable margins. Capital efficiency is at peak performance.",
-          icon: CheckCircle2
-        });
-      }
-
-      list.push({
-        type: "info",
-        title: "AWS Cost Optimization",
-        description: "Server costs increased by 15% this month. A reserved instance plan could save up to $450/mo.",
-        icon: Info
-      });
-      
-    } else {
-      if (apexScore < 70) {
-        list.push({
-          type: "warning",
-          title: "Discretionary Spend Alert",
-          description: "Entertainment and luxury expenses are 20% higher than last month. This is impacting your Porsche savings goal.",
-          icon: AlertTriangle
-        });
-      } else {
-        list.push({
-          type: "success",
-          title: "Savings Streak",
-          description: "You've stayed under budget for 3 consecutive weeks! The Porsche down payment is 5% closer.",
+          type: "info",
+          title: "Weekly Velocity",
+          description: `You've spent $${weekSpend.toLocaleString()} in the last 7 days. ${weekSpend > 1000 ? "Watch your discretionary limits." : "Good discipline so far!"}`,
           icon: TrendingUp
         });
       }
+    }
 
+    // 2. Goal Progress
+    if (goals.length > 0) {
+      const mainGoal = goals[0]; // Logic could be improved to find closest
+      const progress = (stats.totalBalance / mainGoal.target_amount) * 100;
+      
+      list.push({
+        type: progress > 50 ? "success" : "info",
+        title: `${mainGoal.name} Progress`,
+        description: `You've reached ${Math.min(100, Math.round(progress))}% of your target. ${progress > 90 ? "Almost there!" : "Keep consistent saves."}`,
+        icon: CheckCircle2
+      });
+    } else if (!isProf) {
+      list.push({
+        type: "warning",
+        title: "No Goals Set",
+        description: "You haven't defined any financial goals. Setting a target can increase savings by 20%.",
+        icon: AlertTriangle
+      });
+    }
+
+    // 3. Category Spike
+    const categoryTotals: Record<string, number> = {};
+    transactions.filter(t => t.amount < 0).forEach(t => {
+      const catName = t.category?.name || "Other";
+      categoryTotals[catName] = (categoryTotals[catName] || 0) + Math.abs(t.amount);
+    });
+
+    const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
+    if (topCategory) {
       list.push({
         type: "info",
-        title: "Subscription Audit",
-        description: "You have 4 active streaming subscriptions. Consolidating could save $25/mo.",
+        title: "Top Spending Area",
+        description: `Your highest spend is in '${topCategory[0]}' ($${topCategory[1].toLocaleString()}). Is this as planned?`,
         icon: Lightbulb
       });
     }
 
-    return list;
-  }, [activeWorkspace, apexScore, transactions, goals]);
+    // Fallback if no data
+    if (list.length === 0) {
+      list.push({
+        type: "info",
+        title: "Waiting for Data",
+        description: "Add more transactions to unlock personalized financial intelligence.",
+        icon: Info
+      });
+    }
+
+    return list.slice(0, 3); // Max 3 insights
+  }, [activeWorkspace, apexScore, transactions, goals, stats]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,9 +109,10 @@ export function ApexInsights() {
           iconColor = "text-emerald-500";
           borderColor = "border-emerald-500/20";
         } else if (insight.type === "info") {
-          bgColor = activeWorkspace.is_professional ? "bg-blue-500/10" : "bg-emerald-500/10";
-          iconColor = activeWorkspace.is_professional ? "text-blue-500" : "text-emerald-500";
-          borderColor = activeWorkspace.is_professional ? "border-blue-500/20" : "border-emerald-500/20";
+          const isProf = activeWorkspace?.is_professional ?? false;
+          bgColor = isProf ? "bg-blue-500/10" : "bg-emerald-500/10";
+          iconColor = isProf ? "text-blue-500" : "text-emerald-500";
+          borderColor = isProf ? "border-blue-500/20" : "border-emerald-500/20";
         }
 
         return (

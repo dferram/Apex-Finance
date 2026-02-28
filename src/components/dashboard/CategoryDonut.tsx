@@ -30,16 +30,21 @@ export function CategoryDonut() {
     }, {} as Record<string, number>);
 
     // Convert to array and sort by amount descending
-    return Object.entries(grouped)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 categories
-  }, [transactions, categories]);
+      return Object.entries(grouped)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5); // Top 5 categories
+    }, [transactions, categories]);
 
   if (data.length === 0) {
     return (
-      <Card className="glass-panel col-span-3 lg:col-span-1 flex items-center justify-center min-h-[350px]">
-        <p className="text-muted-foreground">No data available for this period.</p>
+      <Card className="glass-panel col-span-3 lg:col-span-1 border-t-4 border-t-workspace">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Distribution</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 flex flex-col items-center justify-center min-h-[300px]">
+          <p className="text-muted-foreground text-sm text-center px-6">No data available for this period.</p>
+        </CardContent>
       </Card>
     );
   }
@@ -68,7 +73,7 @@ export function CategoryDonut() {
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => `$${value.toLocaleString()}`}
+                formatter={(value?: number) => [`$${(value || 0).toLocaleString()}`, 'Amount']}
                 contentStyle={{ 
                   backgroundColor: "hsl(var(--background))", 
                   borderColor: "hsl(var(--border))",

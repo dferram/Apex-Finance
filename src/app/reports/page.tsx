@@ -4,9 +4,11 @@ import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useMemo, useState } from "react";
-import { DownloadCloud, Sparkles } from "lucide-react";
+import { FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function ReportsPage() {
   const { transactions, activeWorkspace } = useApex();
@@ -14,6 +16,40 @@ export default function ReportsPage() {
   const accentColor = isProf ? "#3b82f6" : "#10b981"; // blue-500 : emerald-500
 
   const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month'>('month');
+
+  // PDF Export Function
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add header
+    doc.setFontSize(20);
+    doc.setTextColor(40);
+    doc.text("Apex Finance - Intelligence Report", 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Workspace: ${activeWorkspace.name} (${isProf ? "xCore" : "Personal"})`, 14, 30);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 35);
+    doc.text(`View: ${filterRange.toUpperCase()}`, 14, 40);
+
+    // Prepare table data
+    const tableData = chartData.map(d => [
+      d.name,
+      `$${d.Income.toLocaleString()}`,
+      `$${d.Expenses.toLocaleString()}`,
+      `$${(d.Income - d.Expenses).toLocaleString()}`
+    ]);
+
+    autoTable(doc, {
+      startY: 50,
+      head: [['Period', 'Income', 'Expenses', 'Net']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: isProf ? [59, 130, 246] : [16, 185, 129] },
+    });
+
+    doc.save(`Apex_Finance_Report_${filterRange}_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   // Calculate aggregated data based on filter
   const chartData = useMemo(() => {
@@ -26,13 +62,11 @@ export default function ReportsPage() {
       const txDate = new Date(tx.date);
 
       if (filterRange === 'day') {
-        // Only last 14 days
         const diffDays = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays > 14) return;
         key = txDate.toISOString().split('T')[0];
         name = txDate.toLocaleDateString('default', { day: '2-digit', month: 'short' });
       } else if (filterRange === 'week') {
-        // Last 8 weeks
         const diffWeeks = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
         if (diffWeeks > 8) return;
         const weekStart = new Date(txDate);
@@ -40,7 +74,6 @@ export default function ReportsPage() {
         key = weekStart.toISOString().split('T')[0];
         name = `W${Math.ceil(txDate.getDate() / 7)} ${txDate.toLocaleString('default', { month: 'short' })}`;
       } else {
-        // Last 12 months
         key = `${txDate.getFullYear()}-${txDate.getMonth()}`;
         name = txDate.toLocaleString('default', { month: 'short' });
       }
@@ -78,21 +111,25 @@ export default function ReportsPage() {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+        <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Financial Intelligence Reports</h1>
-          <p className="text-muted-foreground mt-1">Deep dive analytics and historical performance.</p>
+          <p className="text-muted-foreground mt-1 text-sm">Deep dive analytics and historical performance.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <Tabs value={filterRange} onValueChange={(v) => setFilterRange(v as 'day' | 'week' | 'month')} className="bg-background/50 p-1 rounded-lg border border-border">
-            <TabsList className="grid grid-cols-3 w-[300px] h-8">
-              <TabsTrigger value="day" className="text-xs h-7">Daily</TabsTrigger>
-              <TabsTrigger value="week" className="text-xs h-7">Weekly</TabsTrigger>
-              <TabsTrigger value="month" className="text-xs h-7">Monthly</TabsTrigger>
+        <div className="flex items-center gap-3">
+          <Tabs value={filterRange} onValueChange={(v) => setFilterRange(v as 'day' | 'week' | 'month')} className="bg-background/20 p-1 rounded-lg border border-border h-10 flex">
+            <TabsList className="bg-transparent border-0 grid grid-cols-3 w-[260px] h-full gap-1">
+              <TabsTrigger value="day" className="text-[11px] h-full data-[state=active]:bg-workspace data-[state=active]:text-white">Daily</TabsTrigger>
+              <TabsTrigger value="week" className="text-[11px] h-full data-[state=active]:bg-workspace data-[state=active]:text-white">Weekly</TabsTrigger>
+              <TabsTrigger value="month" className="text-[11px] h-full data-[state=active]:bg-workspace data-[state=active]:text-white">Monthly</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button variant="outline" className="shrink-0 bg-background/50 border-workspace/30 text-workspace hover:bg-workspace hover:text-white transition-colors">
-            <DownloadCloud className="h-4 w-4 mr-2" />
-            Export (CSV)
+          <Button 
+            variant="outline" 
+            onClick={exportToPDF}
+            className="h-10 shrink-0 bg-background/50 border-workspace/30 text-workspace hover:bg-workspace hover:text-white transition-all duration-300 font-medium px-4"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Export (PDF)
           </Button>
         </div>
       </div>

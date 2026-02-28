@@ -13,19 +13,23 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMemo } from "react";
-import * as Icons from "lucide-react";
 
 export function RecentTransactions() {
   const { transactions, categories, activeWorkspace } = useApex();
 
   const recentTxs = useMemo(() => {
     return [...transactions]
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .filter(t => t.date !== null)
+      .sort((a, b) => {
+        const dateA = a.date ? new Date(a.date).getTime() : 0;
+        const dateB = b.date ? new Date(b.date).getTime() : 0;
+        return dateB - dateA;
+      })
       .slice(0, 10); // Show max 10
   }, [transactions]);
 
   // Color mappings
-  const isProf = activeWorkspace.is_professional;
+  const isProf = activeWorkspace?.is_professional ?? false;
   const primaryBadgeColor = isProf ? "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20" : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20";
   const secondaryBadgeColor = "bg-muted text-muted-foreground hover:bg-muted/80";
 
@@ -35,8 +39,8 @@ export function RecentTransactions() {
         <CardHeader>
           <CardTitle className="text-base font-semibold">Ledger</CardTitle>
         </CardHeader>
-        <CardContent>
-           <p className="text-muted-foreground text-sm text-center py-6">No recent transactions to display.</p>
+        <CardContent className="p-0 flex flex-col items-center justify-center min-h-[200px]">
+           <p className="text-muted-foreground text-sm text-center px-6">No recent transactions to display.</p>
         </CardContent>
       </Card>
     );
@@ -63,7 +67,7 @@ export function RecentTransactions() {
             {recentTxs.map((tx) => {
               const cat = categories.find(c => c.id === tx.category_id);
               const isIncome = tx.amount > 0;
-              const formattedDate = format(tx.date, "MMM dd");
+              const formattedDate = tx.date ? format(new Date(tx.date), "MMM dd") : "N/A";
               
               const amountClass = isIncome 
                 ? (isProf ? "text-blue-500" : "text-emerald-500") 

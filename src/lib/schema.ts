@@ -1,5 +1,21 @@
-import { pgTable, text, timestamp, boolean, decimal, bigserial, integer, numeric } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { pgTable, text, timestamp, boolean, bigserial, integer, numeric } from 'drizzle-orm/pg-core';
+import { relations, type InferSelectModel } from 'drizzle-orm';
+
+export type User = InferSelectModel<typeof users>;
+export type Workspace = InferSelectModel<typeof workspaces>;
+export type Category = InferSelectModel<typeof categories>;
+export type Transaction = InferSelectModel<typeof transactions>;
+export type Goal = InferSelectModel<typeof financial_goals>;
+
+export interface TransactionWithCategory extends Omit<Transaction, 'amount'> {
+  amount: number;
+  category: Category | null;
+}
+
+export interface GoalWithNumbers extends Omit<Goal, 'target_amount' | 'current_amount'> {
+  target_amount: number;
+  current_amount: number;
+}
 
 // Tablas basadas en inspección real de la DB
 export const users = pgTable('users', {

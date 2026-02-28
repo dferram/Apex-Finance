@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { workspaces, transactions, categories, financial_goals } from '@/lib/schema';
+import { workspaces, transactions, categories, financial_goals, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
 import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
@@ -30,6 +30,8 @@ export async function getTransactions(workspaceId: number) {
     const data = await db
       .select({
         id: transactions.id,
+        workspace_id: transactions.workspace_id,
+        category_id: transactions.category_id,
         amount: transactions.amount,
         description: transactions.description,
         date: transactions.date,
@@ -45,7 +47,7 @@ export async function getTransactions(workspaceId: number) {
     return data.map(t => ({
       ...t,
       amount: Number(t.amount || 0),
-    }));
+    })) as TransactionWithCategory[];
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return [];
@@ -160,9 +162,24 @@ export async function createFinancialGoal(data: { user_id: number; name: string;
       deadline: data.deadline,
     });
     revalidatePath('/goals');
+    revalidatePath('/');
     return { success: true };
   } catch (error) {
     console.error('Error creating goal:', error);
     return { success: false, error: 'Could not create goal' };
+  }
+}
+
+export async function getFinancialGoals(userId: number) {
+  try {
+    const data = await db.select().from(financial_goals).where(eq(financial_goals.user_id, userId));
+    return data.map(g => ({
+      ...g,
+      target_amount: Number(g.target_amount || 0),
+      current_amount: Number(g.current_amount || 0),
+    })) as GoalWithNumbers[];
+  } catch (error) {
+    console.error('Error fetching goals:', error);
+    return [];
   }
 }
