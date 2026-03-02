@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, BarChart3, Target, Sparkles, Boxes } from "lucide-react";
+import { LayoutDashboard, Receipt, BarChart3, Target, Sparkles, Boxes, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -11,6 +11,7 @@ const items = [
   { label: "Categories", icon: Boxes, href: "/categories" },
   { label: "Financial Goals", icon: Target, href: "/goals" },
   { label: "Apex Insights", icon: Sparkles, href: "/insights" },
+  { label: "Admin", icon: Settings, href: "/admin" },
 ];
 
 export function Sidebar() {

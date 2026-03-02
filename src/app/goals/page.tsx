@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 export default function GoalsPage() {
   const { goals, activeWorkspace } = useApex();
-  const isProf = activeWorkspace.is_professional;
+  const isProf = activeWorkspace?.is_professional;
   const accentColor = isProf ? "bg-blue-500" : "bg-emerald-500";
 
   if (goals.length === 0) {

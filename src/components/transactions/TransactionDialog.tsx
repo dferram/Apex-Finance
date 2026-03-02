@@ -149,7 +149,7 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
                 <SelectValue placeholder="Selecciona una categoría" />
               </SelectTrigger>
               <SelectContent>
-                {wsCategories.map((cat: { id: number; name: string; full_path: string }) => (
+                {wsCategories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id.toString()}>{cat.full_path}</SelectItem>
                 ))}
               </SelectContent>

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, bigserial, integer, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, bigserial, integer, numeric, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { relations, type InferSelectModel } from 'drizzle-orm';
 
 export type User = InferSelectModel<typeof users>;
@@ -36,7 +36,7 @@ export const workspaces = pgTable('workspaces', {
 export const categories = pgTable('categories', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   workspace_id: integer('workspace_id').references(() => workspaces.id),
-  parent_id: integer('parent_id').references(() => categories.id),
+  parent_id: integer('parent_id').references((): AnyPgColumn => categories.id),
   name: text('name').notNull(),
   monthly_budget: numeric('monthly_budget'),
   is_project: boolean('is_project').default(false),
