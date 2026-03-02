@@ -256,3 +256,182 @@ export async function getFinancialGoals(userId: number) {
     return [];
   }
 }
+
+// ── Category mutations ──────────────────────────────────────────────────────
+
+export async function updateCategory(
+  id: number,
+  data: { name?: string; parent_id?: number | null; monthly_budget?: number | null; is_project?: boolean }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(categories)
+      .set({
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.parent_id !== undefined && { parent_id: data.parent_id }),
+        ...(data.monthly_budget !== undefined && { monthly_budget: data.monthly_budget !== null ? data.monthly_budget.toString() : null }),
+        ...(data.is_project !== undefined && { is_project: data.is_project }),
+      })
+      .where(eq(categories.id, id));
+    revalidatePath('/');
+    revalidatePath('/categories');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating category:', error);
+    return { success: false, error: 'Could not update category' };
+  }
+}
+
+export async function deleteCategory(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const children = await db.select({ id: categories.id }).from(categories).where(eq(categories.parent_id, id));
+    if (children.length > 0) {
+      return { success: false, error: `Esta categoría tiene ${children.length} subcategoría(s). Elimínalas primero.` };
+    }
+    const txs = await db.select({ id: transactions.id }).from(transactions).where(eq(transactions.category_id, id));
+    if (txs.length > 0) {
+      return { success: false, error: `Esta categoría tiene ${txs.length} transacción(es) asociada(s). Reasígnalas primero.` };
+    }
+    await db.delete(categories).where(eq(categories.id, id));
+    revalidatePath('/');
+    revalidatePath('/categories');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    return { success: false, error: 'Could not delete category' };
+  }
+}
+
+export async function moveCategoryParent(
+  categoryId: number,
+  newParentId: number | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Cycle detection: newParentId must not be a descendant of categoryId
+    if (newParentId !== null) {
+      const descendants = await db.execute(sql`
+        WITH RECURSIVE subtree AS (
+          SELECT id FROM categories WHERE id = ${categoryId}
+          UNION ALL
+          SELECT c.id FROM categories c JOIN subtree s ON c.parent_id = s.id
+        )
+        SELECT id FROM subtree
+      `);
+      const descendantIds = (descendants.rows as { id: number }[]).map(r => Number(r.id));
+      if (descendantIds.includes(newParentId)) {
+        return { success: false, error: 'No se puede mover una categoría dentro de sus propios descendientes.' };
+      }
+    }
+    await db.update(categories).set({ parent_id: newParentId }).where(eq(categories.id, categoryId));
+    revalidatePath('/');
+    revalidatePath('/categories');
+    return { success: true };
+  } catch (error) {
+    console.error('Error moving category:', error);
+    return { success: false, error: 'Could not move category' };
+  }
+}
+
+// ── Transaction mutations ───────────────────────────────────────────────────
+
+export async function updateTransaction(
+  id: number,
+  data: { amount?: number; description?: string; category_id?: number; date?: Date; is_essential?: boolean }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(transactions)
+      .set({
+        ...(data.amount !== undefined && { amount: data.amount.toString() }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.category_id !== undefined && { category_id: data.category_id }),
+        ...(data.date !== undefined && { date: data.date }),
+        ...(data.is_essential !== undefined && { is_essential: data.is_essential }),
+      })
+      .where(eq(transactions.id, id));
+    revalidatePath('/');
+    revalidatePath('/transactions');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating transaction:', error);
+    return { success: false, error: 'Could not update transaction' };
+  }
+}
+
+export async function deleteTransaction(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.delete(transactions).where(eq(transactions.id, id));
+    revalidatePath('/');
+    revalidatePath('/transactions');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting transaction:', error);
+    return { success: false, error: 'Could not delete transaction' };
+  }
+}
+
+// ── Goal mutations ──────────────────────────────────────────────────────────
+
+export async function updateGoal(
+  id: number,
+  data: { name?: string; target_amount?: number; current_amount?: number; deadline?: Date | null }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(financial_goals)
+      .set({
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.target_amount !== undefined && { target_amount: data.target_amount.toString() }),
+        ...(data.current_amount !== undefined && { current_amount: data.current_amount.toString() }),
+        ...(data.deadline !== undefined && { deadline: data.deadline }),
+      })
+      .where(eq(financial_goals.id, id));
+    revalidatePath('/goals');
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating goal:', error);
+    return { success: false, error: 'Could not update goal' };
+  }
+}
+
+export async function deleteGoal(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.delete(financial_goals).where(eq(financial_goals.id, id));
+    revalidatePath('/goals');
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting goal:', error);
+    return { success: false, error: 'Could not delete goal' };
+  }
+}
+
+// ── Workspace mutations ─────────────────────────────────────────────────────
+
+export async function updateWorkspace(
+  id: number,
+  data: { name?: string; currency?: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(workspaces)
+      .set({
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.currency !== undefined && { currency: data.currency }),
+      })
+      .where(eq(workspaces.id, id));
+    revalidatePath('/');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating workspace:', error);
+    return { success: false, error: 'Could not update workspace' };
+  }
+}

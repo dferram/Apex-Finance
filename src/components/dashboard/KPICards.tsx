@@ -2,14 +2,14 @@
 
 import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, TrendingDown, TrendingUp, Activity, Target } from "lucide-react";
+import { Wallet, TrendingDown, TrendingUp, Activity } from "lucide-react";
 import { useMemo } from "react";
 
 export function KPICards() {
-  const { activeWorkspace, transactions, apexScore, goals } = useApex();
+  const { activeWorkspace, transactions, apexScore } = useApex();
 
   const metrics = useMemo(() => {
-    const isProf = activeWorkspace.is_professional;
+    const isProf = activeWorkspace?.is_professional;
     const income = transactions.filter(t => t.amount > 0).reduce((acc, curr) => acc + curr.amount, 0);
     const expenses = transactions.filter(t => t.amount < 0).reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
     
@@ -19,7 +19,7 @@ export function KPICards() {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const weeklySpend = transactions
-      .filter(t => t.amount < 0 && t.date >= sevenDaysAgo)
+      .filter(t => t.amount < 0 && t.date != null && t.date >= sevenDaysAgo)
       .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
 
     return {

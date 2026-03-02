@@ -8,7 +8,7 @@ import { FileText, Sparkles, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { TreeView } from "@/components/ui/TreeView";
+import { TreeView, type TreeItemProps } from "@/components/ui/TreeView";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { CategoryNode } from "@/app/actions";
@@ -206,7 +206,7 @@ export default function ReportsPage() {
              <CardContent className="pt-2">
                 <div className="bg-muted/10 rounded-xl p-6 border border-border/50">
                   {treeData.length > 0 ? (
-                    <TreeView data={treeData} expandedIds={treeData.map(r => r.id)} />
+                    <TreeView data={treeData as unknown as TreeItemProps[]} expandedIds={treeData.map(r => r.id)} />
                   ) : (
                     <div className="py-12 text-center">
                       <p className="text-muted-foreground">No hay categorías configuradas para este workspace.</p>

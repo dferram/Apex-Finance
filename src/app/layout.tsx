@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { ApexProvider } from "@/context/ApexContext";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
-
-const inter = Inter({ subsets: ["latin"] });
 
 import { getWorkspaces, getTransactions, getApexStats, getCategories, getFinancialGoals, getCategoriesHierarchical, getCategoryTotalsHierarchical } from "@/app/actions";
 import { type TransactionWithCategory, type Category, type GoalWithNumbers } from "@/lib/schema";
@@ -29,7 +26,7 @@ export default async function RootLayout({
 
   let transactions: TransactionWithCategory[] = [];
   let categories: Category[] = [];
-  let categoriesHierarchical: any[] = [];
+  let categoriesHierarchical: Awaited<ReturnType<typeof getCategoriesHierarchical>> = [];
   let categoriesHierarchicalTotals: { category_id: number; total_amount: string }[] = [];
   let stats = { totalBalance: 0, weeklyExpense: 0, totalIncome: 0, totalExpense: 0 };
 
@@ -45,7 +42,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} min-h-screen bg-background antialiased selection:bg-workspace/30 selection:text-workspace`}>
+      <body className={`min-h-screen bg-background antialiased selection:bg-workspace/30 selection:text-workspace font-sans`}>
         <ApexProvider 
           initialWorkspaces={workspaces}
           initialActiveWorkspace={activeWorkspace}

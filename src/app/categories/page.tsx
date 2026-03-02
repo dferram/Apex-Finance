@@ -4,10 +4,11 @@ import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TreeView } from "@/components/ui/TreeView";
 import { CategoryDialog } from "@/components/transactions/CategoryDialog";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { Boxes, Target, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CategoryNode } from "@/app/actions";
+import { CategoryNode, moveCategoryParent } from "@/app/actions";
+import { type TreeItemProps } from "@/components/ui/TreeView";
 
 interface TreeItem extends CategoryNode {
   amount: number;
@@ -16,7 +17,7 @@ interface TreeItem extends CategoryNode {
 }
 
 export default function CategoriesPage() {
-  const { activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals } = useApex();
+  const { activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals, refreshData } = useApex();
 
   const treeData = useMemo(() => {
     const map: Record<number, TreeItem> = {};
@@ -42,6 +43,15 @@ export default function CategoriesPage() {
     return roots;
   }, [categoriesHierarchical, categoriesHierarchicalTotals]);
 
+  const handleMove = useCallback(async (draggedId: number, targetId: number | null) => {
+    const result = await moveCategoryParent(draggedId, targetId);
+    if (result.success) {
+      await refreshData();
+    } else {
+      alert(result.error || 'Error al mover la categoría');
+    }
+  }, [refreshData]);
+
   if (!activeWorkspace) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -59,7 +69,7 @@ export default function CategoriesPage() {
             Gestión de Categorías
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Configura y organiza tu estructura financiera jerárquica.
+            Configura y organiza tu estructura financiera jerárquica. Arrastra categorías para reorganizar.
           </p>
         </div>
         
@@ -81,7 +91,7 @@ export default function CategoriesPage() {
                      Arquitectura de Gastos
                    </CardTitle>
                    <CardDescription className="mt-1">
-                     Visualización en tiempo real de cómo se agregan tus gastos a través de la jerarquía.
+                     Visualización en tiempo real. Arrastra y suelta para reorganizar la jerarquía.
                    </CardDescription>
                 </div>
              </div>
@@ -90,8 +100,9 @@ export default function CategoriesPage() {
              <div className="bg-muted/10 rounded-2xl p-8 border border-border/50 shadow-inner">
                {treeData.length > 0 ? (
                  <TreeView 
-                   data={treeData} 
+                   data={treeData as unknown as TreeItemProps[]} 
                    expandedIds={treeData.map(r => r.id)} 
+                   onMove={handleMove}
                    renderActions={(item) => (
                      <CategoryDialog initialParentId={item.id}>
                         <button 

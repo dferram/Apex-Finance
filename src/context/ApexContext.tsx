@@ -26,6 +26,7 @@ interface ApexContextType {
   isLoading: boolean;
   switchWorkspace: (id: number) => Promise<void>;
   addOptimisticTransaction: (tx: TransactionWithCategory) => void;
+  refreshData: () => Promise<void>;
 }
 
 const ApexContext = createContext<ApexContextType | undefined>(undefined);
@@ -101,6 +102,31 @@ export function ApexProvider({
     }
   };
 
+  const refreshData = async () => {
+    if (!activeWorkspace) return;
+    setIsLoading(true);
+    try {
+      const [txs, newStats, newCats, newCatsHier, newTotals] = await Promise.all([
+        getTransactions(activeWorkspace.id),
+        getApexStats(activeWorkspace.id),
+        getCategories(activeWorkspace.id),
+        getCategoriesHierarchical(activeWorkspace.id),
+        getCategoryTotalsHierarchical(activeWorkspace.id)
+      ]);
+      startTransitionSwitch(() => {
+        setTransactions(txs);
+        setStats(newStats);
+        setCategories(newCats);
+        setCategoriesHierarchical(newCatsHier);
+        setCategoriesHierarchicalTotals(newTotals);
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const apexScore = useMemo(() => {
     if (!activeWorkspace) return 100;
     
@@ -151,6 +177,7 @@ export function ApexProvider({
     isLoading: isLoading || isPending,
     switchWorkspace,
     addOptimisticTransaction,
+    refreshData,
   };
 
   return <ApexContext.Provider value={value}>{children}</ApexContext.Provider>;
