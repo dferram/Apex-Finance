@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { workspaces, transactions, categories, financial_goals, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
+import { workspaces, transactions, categories, financial_goals, partners, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
 import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
@@ -404,13 +404,65 @@ export async function updateGoal(
 export async function deleteGoal(id: number): Promise<{ success: boolean; error?: string }> {
   try {
     await db.delete(financial_goals).where(eq(financial_goals.id, id));
-    revalidatePath('/goals');
     revalidatePath('/');
-    revalidatePath('/admin');
     return { success: true };
   } catch (error) {
     console.error('Error deleting goal:', error);
-    return { success: false, error: 'Could not delete goal' };
+    return { success: false, error: 'Failed to delete goal' };
+  }
+}
+
+// Partners CRUD
+export async function getPartners(workspaceId: number) {
+  try {
+    const data = await db.select().from(partners).where(eq(partners.workspace_id, workspaceId)).orderBy(desc(partners.percentage));
+    return data;
+  } catch (error) {
+    console.error('Error fetching partners:', error);
+    return [];
+  }
+}
+
+export async function createPartner(data: { workspace_id: number; name: string; percentage: number; email?: string }) {
+  try {
+    const [partner] = await db.insert(partners).values({
+      workspace_id: data.workspace_id,
+      name: data.name,
+      percentage: data.percentage.toString(),
+      email: data.email || null,
+    }).returning();
+    revalidatePath('/reports');
+    return { success: true, partner };
+  } catch (error) {
+    console.error('Error creating partner:', error);
+    return { success: false, error: 'Failed to create partner' };
+  }
+}
+
+export async function updatePartner(id: number, data: { name?: string; percentage?: number; email?: string }) {
+  try {
+    const updateData: Record<string, string | number | null> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.percentage !== undefined) updateData.percentage = data.percentage.toString();
+    if (data.email !== undefined) updateData.email = data.email || null;
+
+    await db.update(partners).set(updateData).where(eq(partners.id, id));
+    revalidatePath('/reports');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating partner:', error);
+    return { success: false, error: 'Failed to update partner' };
+  }
+}
+
+export async function deletePartner(id: number) {
+  try {
+    await db.delete(partners).where(eq(partners.id, id));
+    revalidatePath('/reports');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting partner:', error);
+    return { success: false, error: 'Failed to delete partner' };
   }
 }
 

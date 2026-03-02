@@ -6,6 +6,7 @@ export type Workspace = InferSelectModel<typeof workspaces>;
 export type Category = InferSelectModel<typeof categories>;
 export type Transaction = InferSelectModel<typeof transactions>;
 export type Goal = InferSelectModel<typeof financial_goals>;
+export type Partner = InferSelectModel<typeof partners>;
 
 export interface TransactionWithCategory extends Omit<Transaction, 'amount'> {
   amount: number;
@@ -59,6 +60,15 @@ export const financial_goals = pgTable('financial_goals', {
   target_amount: numeric('target_amount').notNull(),
   current_amount: numeric('current_amount').default('0'),
   deadline: timestamp('deadline'),
+});
+
+export const partners = pgTable('partners', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
+  name: text('name').notNull(),
+  percentage: numeric('percentage', { precision: 5, scale: 2 }).notNull(),
+  email: text('email'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Relaciones

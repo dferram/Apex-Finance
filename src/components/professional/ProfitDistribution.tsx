@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Users, Plus, Trash2, DollarSign } from "lucide-react";
 import { calculateProfitDistribution, type Partner } from "@/lib/companyValuation";
+import { getPartners, createPartner, deletePartner } from "@/app/actions";
 
 interface ProfitDistributionProps {
   totalProfit: number;
@@ -16,16 +17,27 @@ interface ProfitDistributionProps {
 }
 
 export function ProfitDistribution({ totalProfit, workspaceId }: ProfitDistributionProps) {
-  // For now, use local state. In production, this would be fetched from database using workspaceId
-  // TODO: Fetch partners from database: getPartners(workspaceId)
-  const [partners, setPartners] = useState<Partner[]>([
-    { id: 1, name: "Founder 1", percentage: 60 },
-    { id: 2, name: "Founder 2", percentage: 40 },
-  ]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [open, setOpen] = useState(false);
   const [newPartnerName, setNewPartnerName] = useState("");
   const [newPartnerPercentage, setNewPartnerPercentage] = useState("");
+
+  // Fetch partners from database
+  useEffect(() => {
+    async function loadPartners() {
+      setLoading(true);
+      const data = await getPartners(workspaceId);
+      setPartners(data.map(p => ({
+        id: p.id,
+        name: p.name,
+        percentage: Number(p.percentage),
+      })));
+      setLoading(false);
+    }
+    loadPartners();
+  }, [workspaceId]);
 
   const distribution = useMemo(() => {
     return calculateProfitDistribution(totalProfit, partners);
@@ -34,26 +46,35 @@ export function ProfitDistribution({ totalProfit, workspaceId }: ProfitDistribut
   const totalPercentage = partners.reduce((sum, p) => sum + p.percentage, 0);
   const isValidPercentage = Math.abs(totalPercentage - 100) < 0.01;
 
-  const handleAddPartner = () => {
+  const handleAddPartner = async () => {
     if (!newPartnerName || !newPartnerPercentage) return;
     
     const percentage = parseFloat(newPartnerPercentage);
     if (isNaN(percentage) || percentage <= 0 || percentage > 100) return;
 
-    const newPartner: Partner = {
-      id: Math.max(...partners.map(p => p.id), 0) + 1,
+    const result = await createPartner({
+      workspace_id: workspaceId,
       name: newPartnerName,
       percentage,
-    };
+    });
 
-    setPartners([...partners, newPartner]);
-    setNewPartnerName("");
-    setNewPartnerPercentage("");
-    setOpen(false);
+    if (result.success && result.partner) {
+      setPartners([...partners, {
+        id: result.partner.id,
+        name: result.partner.name,
+        percentage: Number(result.partner.percentage),
+      }]);
+      setNewPartnerName("");
+      setNewPartnerPercentage("");
+      setOpen(false);
+    }
   };
 
-  const handleRemovePartner = (id: number) => {
-    setPartners(partners.filter(p => p.id !== id));
+  const handleRemovePartner = async (id: number) => {
+    const result = await deletePartner(id);
+    if (result.success) {
+      setPartners(partners.filter(p => p.id !== id));
+    }
   };
 
   const formatCurrency = (amount: number) => {

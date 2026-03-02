@@ -327,6 +327,132 @@ const swaggerDocument = {
         },
       },
     },
+    '/api/partners': {
+      get: {
+        summary: 'Get partners',
+        description: 'Retrieves all partners for a specific workspace',
+        tags: ['Partners'],
+        parameters: [
+          {
+            name: 'workspace_id',
+            in: 'query',
+            required: true,
+            schema: {
+              type: 'integer',
+            },
+            description: 'Workspace ID',
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Successful response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    $ref: '#/components/schemas/Partner',
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Bad request - workspace_id is required',
+          },
+        },
+      },
+      post: {
+        summary: 'Create partner',
+        description: 'Creates a new partner for a workspace',
+        tags: ['Partners'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/CreatePartner',
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Partner created successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Partner',
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Bad request - invalid data',
+          },
+        },
+      },
+    },
+    '/api/partners/{id}': {
+      patch: {
+        summary: 'Update partner',
+        description: 'Updates an existing partner',
+        tags: ['Partners'],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: {
+              type: 'integer',
+            },
+            description: 'Partner ID',
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/UpdatePartner',
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Partner updated successfully',
+          },
+          '400': {
+            description: 'Bad request - invalid data',
+          },
+        },
+      },
+      delete: {
+        summary: 'Delete partner',
+        description: 'Deletes a partner',
+        tags: ['Partners'],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: {
+              type: 'integer',
+            },
+            description: 'Partner ID',
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Partner deleted successfully',
+          },
+          '400': {
+            description: 'Bad request - invalid ID',
+          },
+        },
+      },
+    },
     '/api/categories/hierarchical/totals': {
       get: {
         summary: 'Get hierarchical category totals',
@@ -839,6 +965,73 @@ const swaggerDocument = {
           level: {
             type: 'integer',
             description: 'Depth level in the hierarchy (1 = root)',
+          },
+        },
+      },
+      Partner: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'integer',
+          },
+          workspace_id: {
+            type: 'integer',
+          },
+          name: {
+            type: 'string',
+          },
+          percentage: {
+            type: 'number',
+            format: 'decimal',
+            description: 'Ownership percentage (0.00 to 100.00)',
+          },
+          email: {
+            type: 'string',
+            nullable: true,
+          },
+          created_at: {
+            type: 'string',
+            format: 'date-time',
+          },
+        },
+      },
+      CreatePartner: {
+        type: 'object',
+        required: ['workspace_id', 'name', 'percentage'],
+        properties: {
+          workspace_id: {
+            type: 'integer',
+          },
+          name: {
+            type: 'string',
+          },
+          percentage: {
+            type: 'number',
+            format: 'decimal',
+            minimum: 0,
+            maximum: 100,
+          },
+          email: {
+            type: 'string',
+            nullable: true,
+          },
+        },
+      },
+      UpdatePartner: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+          },
+          percentage: {
+            type: 'number',
+            format: 'decimal',
+            minimum: 0,
+            maximum: 100,
+          },
+          email: {
+            type: 'string',
+            nullable: true,
           },
         },
       },
