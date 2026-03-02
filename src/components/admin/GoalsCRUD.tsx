@@ -53,7 +53,7 @@ export function GoalsCRUD() {
       setEditItem(null);
       await refreshData();
     } else {
-      setError(result.error || "Error al guardar");
+      setError(result.error || "Error saving");
     }
   };
 
@@ -66,7 +66,7 @@ export function GoalsCRUD() {
       setDeleteId(null);
       await refreshData();
     } else {
-      setError(result.error || "Error al eliminar");
+      setError(result.error || "Error deleting");
     }
   };
 
@@ -76,19 +76,19 @@ export function GoalsCRUD() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Meta</TableHead>
-              <TableHead>Actual</TableHead>
-              <TableHead>Progreso</TableHead>
-              <TableHead>Fecha límite</TableHead>
-              <TableHead className="w-24">Acciones</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Target</TableHead>
+              <TableHead>Current</TableHead>
+              <TableHead>Progress</TableHead>
+              <TableHead>Deadline</TableHead>
+              <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {goals.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No hay metas financieras.
+                  No financial goals.
                 </TableCell>
               </TableRow>
             )}
@@ -133,31 +133,31 @@ export function GoalsCRUD() {
       <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Meta Financiera</DialogTitle>
+            <DialogTitle>Edit Financial Goal</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5">
-              <Label>Nombre</Label>
+              <Label>Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Monto Objetivo</Label>
+              <Label>Target Amount</Label>
               <Input type="number" value={targetAmount} onChange={(e) => setTargetAmount(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Monto Actual</Label>
+              <Label>Current Amount</Label>
               <Input type="number" value={currentAmount} onChange={(e) => setCurrentAmount(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Fecha Límite</Label>
+              <Label>Deadline</Label>
               <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditItem(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Guardando…" : "Guardar"}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -167,14 +167,14 @@ export function GoalsCRUD() {
       <Dialog open={deleteId !== null} onOpenChange={(open) => { if (!open) { setDeleteId(null); setError(null); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">¿Estás seguro de que deseas eliminar esta meta financiera?</p>
+          <p className="text-sm text-muted-foreground">Are you sure you want to delete this financial goal?</p>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeleteId(null); setError(null); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setDeleteId(null); setError(null); }}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={saving}>
-              {saving ? "Eliminando…" : "Eliminar"}
+              {saving ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

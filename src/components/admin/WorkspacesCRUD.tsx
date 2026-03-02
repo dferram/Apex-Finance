@@ -43,7 +43,7 @@ export function WorkspacesCRUD() {
       setEditItem(null);
       await refreshData();
     } else {
-      setError(result.error || "Error al guardar");
+      setError(result.error || "Error saving");
     }
   };
 
@@ -53,18 +53,18 @@ export function WorkspacesCRUD() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Moneda</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="w-24">Acciones</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Currency</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {workspaces.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  No hay workspaces.
+                  No workspaces.
                 </TableCell>
               </TableRow>
             )}
@@ -76,12 +76,12 @@ export function WorkspacesCRUD() {
                   <TableCell className="text-muted-foreground text-xs">{ws.currency ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant={ws.is_professional ? "default" : "secondary"}>
-                      {ws.is_professional ? "Profesional" : "Personal"}
+                      {ws.is_professional ? "Professional" : "Personal"}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     {isActive && (
-                      <Badge className="bg-workspace/20 text-workspace border-workspace/30">Activo</Badge>
+                      <Badge className="bg-workspace/20 text-workspace border-workspace/30">Active</Badge>
                     )}
                   </TableCell>
                   <TableCell>
@@ -100,23 +100,23 @@ export function WorkspacesCRUD() {
       <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Workspace</DialogTitle>
+            <DialogTitle>Edit Workspace</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5">
-              <Label>Nombre</Label>
+              <Label>Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Moneda (ej: USD, EUR, MXN)</Label>
+              <Label>Currency (e.g. USD, EUR, MXN)</Label>
               <Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditItem(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Guardando…" : "Guardar"}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

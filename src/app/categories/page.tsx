@@ -48,14 +48,14 @@ export default function CategoriesPage() {
     if (result.success) {
       await refreshData();
     } else {
-      alert(result.error || 'Error al mover la categoría');
+      alert(result.error || 'Error moving category');
     }
   }, [refreshData]);
 
   if (!activeWorkspace) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Por favor, selecciona un workspace para gestionar categorías.</p>
+        <p className="text-muted-foreground">Please select a workspace to manage categories.</p>
       </div>
     );
   }
@@ -121,14 +121,14 @@ export default function CategoriesPage() {
                      <Boxes className="h-8 w-8 text-workspace/40" />
                    </div>
                    <div className="max-w-xs">
-                     <p className="text-muted-foreground font-medium">No hay categorías configuradas.</p>
+                     <p className="text-muted-foreground font-medium">No categories configured.</p>
                      <p className="text-xs text-muted-foreground/60 mt-1">
-                       Comienza creando tu primera categoría para organizar tus transacciones y proyectos.
+                       Start by creating your first category to organize your transactions and projects.
                      </p>
                    </div>
                    <CategoryDialog>
                      <Button variant="outline" className="mt-4 border-workspace/30 text-workspace">
-                       Crear Categoría
+                       Create Category
                      </Button>
                    </CategoryDialog>
                  </div>
@@ -137,15 +137,15 @@ export default function CategoriesPage() {
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                 <div className="p-4 rounded-xl bg-background/50 border border-border/50 flex flex-col gap-1">
-                   <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Categorías</span>
+                   <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Categories</span>
                    <span className="text-2xl font-bold">{categoriesHierarchical.length}</span>
                 </div>
                 <div className="p-4 rounded-xl bg-background/50 border border-border/50 flex flex-col gap-1">
-                   <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Proyectos Activos</span>
+                   <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Active Projects</span>
                    <span className="text-2xl font-bold">{categoriesHierarchical.filter(c => c.is_project).length}</span>
                 </div>
                 <div className="p-4 rounded-xl bg-background/50 border border-border/50 flex flex-col gap-1">
-                   <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Nivel Máximo</span>
+                   <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Max Level</span>
                    <span className="text-2xl font-bold">{Math.max(0, ...categoriesHierarchical.map(c => c.level))}</span>
                 </div>
              </div>

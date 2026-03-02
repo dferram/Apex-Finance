@@ -28,7 +28,7 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
     setLoading(true);
 
     const rawAmount = Number(amount);
-    const convertedAmount = currency === "USD" ? rawAmount * 20 : rawAmount;
+    const convertedAmount = currency === "USD" ? rawAmount * 17.31 : rawAmount;
     const txAmount = type === 'expense' ? -Math.abs(convertedAmount) : Math.abs(convertedAmount);
 
     const newTxData = {
@@ -77,28 +77,28 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Nueva Transacción</DialogTitle>
+          <DialogTitle>New Transaction</DialogTitle>
           <DialogDescription>
-            Agrega una transacción al entorno {isProf ? "xCore" : "Personal"}.
+            Add a transaction to the {isProf ? "xCore" : "Personal"} workspace.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="type">Tipo</Label>
+            <Label htmlFor="type">Type</Label>
             <Select value={type} onValueChange={setType}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona el tipo" />
+                <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="expense">Egreso (Gasto)</SelectItem>
-                <SelectItem value="income">Ingreso</SelectItem>
+                <SelectItem value="expense">Expense</SelectItem>
+                <SelectItem value="income">Income</SelectItem>
               </SelectContent>
             </Select>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Monto</Label>
+              <Label htmlFor="amount">Amount</Label>
               <Input 
                 id="amount" 
                 type="number" 
@@ -110,14 +110,14 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="currency">Moneda</Label>
+              <Label htmlFor="currency">Currency</Label>
               <Select value={currency} onValueChange={setCurrency}>
                 <SelectTrigger>
                   <SelectValue placeholder="MXN" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MXN">MXN (Pesos)</SelectItem>
-                  <SelectItem value="USD">USD (Dólares)</SelectItem>
+                  <SelectItem value="USD">USD (Dollars)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -125,18 +125,18 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
 
           {currency === "USD" && amount && (
             <div className="text-xs text-muted-foreground bg-workspace/5 p-2 rounded border border-workspace/10 flex justify-between items-center">
-              <span>Conversión (1 USD = 20 MXN):</span>
+              <span>Conversion (1 USD = 17.31 MXN):</span>
               <span className="font-mono font-bold text-workspace">
-                ${(Number(amount) * 20).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                ${(Number(amount) * 17.31).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
               </span>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descripción</Label>
+            <Label htmlFor="description">Description</Label>
             <Input 
               id="description" 
-              placeholder="Ej. Compra de supermercado" 
+              placeholder="e.g. Grocery shopping" 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
@@ -144,10 +144,10 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Categoría</Label>
+            <Label htmlFor="category">Category</Label>
             <Select value={categoryId} onValueChange={setCategoryId} required>
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona una categoría" />
+                <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
                 {wsCategories.map((cat) => (
@@ -158,9 +158,9 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
           </div>
 
           <div className="pt-4 flex justify-end space-x-2">
-            <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={loading} className="bg-workspace text-white hover:bg-workspace/90">
-              {loading ? "Guardando..." : "Guardar"}
+              {loading ? "Saving..." : "Save"}
             </Button>
           </div>
         </form>

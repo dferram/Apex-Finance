@@ -13,10 +13,10 @@ export default function AdminPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
           <Settings className="h-8 w-8 text-workspace" />
-          Panel de Administración
+          Administration Panel
         </h1>
         <p className="text-muted-foreground text-sm">
-          Gestiona todos los datos del sistema: transacciones, categorías, metas y workspaces.
+          Manage all system data: transactions, categories, goals and workspaces.
         </p>
       </div>
 
@@ -24,15 +24,15 @@ export default function AdminPage() {
         <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="transactions" className="flex items-center gap-2">
             <Receipt className="h-4 w-4" />
-            <span className="hidden sm:inline">Transacciones</span>
+            <span className="hidden sm:inline">Transactions</span>
           </TabsTrigger>
           <TabsTrigger value="categories" className="flex items-center gap-2">
             <Boxes className="h-4 w-4" />
-            <span className="hidden sm:inline">Categorías</span>
+            <span className="hidden sm:inline">Categories</span>
           </TabsTrigger>
           <TabsTrigger value="goals" className="flex items-center gap-2">
             <Target className="h-4 w-4" />
-            <span className="hidden sm:inline">Metas</span>
+            <span className="hidden sm:inline">Goals</span>
           </TabsTrigger>
           <TabsTrigger value="workspaces" className="flex items-center gap-2">
             <LayoutGrid className="h-4 w-4" />
@@ -44,7 +44,7 @@ export default function AdminPage() {
           <div className="glass-panel rounded-xl border border-workspace/10 p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Receipt className="h-5 w-5 text-workspace" />
-              Transacciones
+              Transactions
             </h2>
             <TransactionsCRUD />
           </div>
@@ -54,7 +54,7 @@ export default function AdminPage() {
           <div className="glass-panel rounded-xl border border-workspace/10 p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Boxes className="h-5 w-5 text-workspace" />
-              Categorías
+              Categories
             </h2>
             <CategoriesCRUD />
           </div>
@@ -64,7 +64,7 @@ export default function AdminPage() {
           <div className="glass-panel rounded-xl border border-workspace/10 p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Target className="h-5 w-5 text-workspace" />
-              Metas Financieras
+              Financial Goals
             </h2>
             <GoalsCRUD />
           </div>

@@ -27,7 +27,7 @@ export function GoalDialog({ children }: { children?: React.ReactNode }) {
     setLoading(true);
 
     const rawAmount = Number(target);
-    const convertedAmount = currency === "USD" ? rawAmount * 20 : rawAmount;
+    const convertedAmount = currency === "USD" ? rawAmount * 17.31 : rawAmount;
 
     try {
       const result = await createFinancialGoal({
@@ -63,17 +63,17 @@ export function GoalDialog({ children }: { children?: React.ReactNode }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Nuevo Objetivo Financiero</DialogTitle>
+          <DialogTitle>New Financial Goal</DialogTitle>
           <DialogDescription>
-            Crea un objetivo estratégico para {activeWorkspace?.is_professional ? "xCore" : "tu cuenta personal"}.
+            Create a strategic goal for {activeWorkspace?.is_professional ? "xCore" : "your personal account"}.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nombre del Objetivo</Label>
+            <Label htmlFor="name">Goal Name</Label>
             <Input 
               id="name" 
-              placeholder="Ej. Fondo de Emergencia, Runway 12 meses, Compra de Equipo" 
+              placeholder="e.g. Emergency fund, Runway 12 months, Equipment purchase" 
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -82,7 +82,7 @@ export function GoalDialog({ children }: { children?: React.ReactNode }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="target">Meta de Ahorro/Inversión</Label>
+              <Label htmlFor="target">Target Amount</Label>
               <Input 
                 id="target" 
                 type="number" 
@@ -94,14 +94,14 @@ export function GoalDialog({ children }: { children?: React.ReactNode }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="currency">Moneda</Label>
+              <Label htmlFor="currency">Currency</Label>
               <Select value={currency} onValueChange={setCurrency}>
                 <SelectTrigger>
                   <SelectValue placeholder="MXN" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MXN">MXN (Pesos)</SelectItem>
-                  <SelectItem value="USD">USD (Dólares)</SelectItem>
+                  <SelectItem value="USD">USD (Dollars)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -109,15 +109,15 @@ export function GoalDialog({ children }: { children?: React.ReactNode }) {
 
           {currency === "USD" && target && (
             <div className="text-xs text-muted-foreground bg-workspace/5 p-2 rounded border border-workspace/10 flex justify-between items-center">
-              <span>Conversión (1 USD = 20 MXN):</span>
+              <span>Conversion (1 USD = 17.31 MXN):</span>
               <span className="font-mono font-bold text-workspace">
-                ${(Number(target) * 20).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                ${(Number(target) * 17.31).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
               </span>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="deadline">Fecha Límite (Opcional)</Label>
+            <Label htmlFor="deadline">Deadline (Optional)</Label>
             <Input 
               id="deadline" 
               type="date" 
@@ -127,9 +127,9 @@ export function GoalDialog({ children }: { children?: React.ReactNode }) {
           </div>
 
           <div className="pt-4 flex justify-end space-x-2">
-            <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="submit" disabled={loading} className="bg-workspace text-white hover:bg-workspace/90">
-              {loading ? "Creando..." : "Crear Objetivo"}
+              {loading ? "Creating..." : "Create Goal"}
             </Button>
           </div>
         </form>

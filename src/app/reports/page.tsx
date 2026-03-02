@@ -44,19 +44,21 @@ export default function ReportsPage() {
 
       if (filterRange === 'day') {
         const diffDays = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays > 14) return;
+        if (diffDays < 0 || diffDays > 30) return; // Skip future dates and dates older than 30 days
         key = txDate.toISOString().split('T')[0];
         name = txDate.toLocaleDateString('default', { day: '2-digit', month: 'short' });
       } else if (filterRange === 'week') {
         const diffWeeks = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
-        if (diffWeeks > 8) return;
+        if (diffWeeks < 0 || diffWeeks > 12) return; // Skip future dates and dates older than 12 weeks
         const weekStart = new Date(txDate);
         weekStart.setDate(txDate.getDate() - txDate.getDay());
         key = weekStart.toISOString().split('T')[0];
         name = `W${Math.ceil(txDate.getDate() / 7)} ${txDate.toLocaleString('default', { month: 'short' })}`;
       } else {
+        const diffMonths = (now.getFullYear() - txDate.getFullYear()) * 12 + (now.getMonth() - txDate.getMonth());
+        if (diffMonths < 0 || diffMonths > 12) return; // Skip future dates and dates older than 12 months
         key = `${txDate.getFullYear()}-${txDate.getMonth()}`;
-        name = txDate.toLocaleString('default', { month: 'short' });
+        name = txDate.toLocaleString('default', { month: 'short', year: txDate.getFullYear() !== now.getFullYear() ? '2-digit' : undefined });
       }
       
       if (!data[key]) {
@@ -197,10 +199,10 @@ export default function ReportsPage() {
              <CardHeader>
                 <CardTitle className="text-xl flex items-center gap-2">
                   <Target className="h-5 w-5 text-workspace" />
-                  Estructura de Presupuesto y Proyectos
+                  Budget and Project Structure
                 </CardTitle>
                 <CardDescription>
-                  Visualización jerárquica de gastos. Los gastos se suman automáticamente hacia arriba en la estructura.
+                  Hierarchical expense visualization. Expenses automatically roll up in the structure.
                 </CardDescription>
              </CardHeader>
              <CardContent className="pt-2">
@@ -209,8 +211,8 @@ export default function ReportsPage() {
                     <TreeView data={treeData as unknown as TreeItemProps[]} expandedIds={treeData.map(r => r.id)} />
                   ) : (
                     <div className="py-12 text-center">
-                      <p className="text-muted-foreground">No hay categorías configuradas para este workspace.</p>
-                      <p className="text-xs text-muted-foreground/50 mt-1">Crea categorías y sub-categorías para ver la jerarquía.</p>
+                      <p className="text-muted-foreground">No categories configured for this workspace.</p>
+                      <p className="text-xs text-muted-foreground/50 mt-1">Create categories and sub-categories to see the hierarchy.</p>
                     </div>
                   )}
                 </div>
@@ -226,35 +228,43 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
              <div className="h-[400px] w-full mt-4">
-               <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                   <XAxis 
-                     dataKey="name" 
-                     axisLine={false} 
-                     tickLine={false} 
-                     tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
-                   />
-                   <YAxis 
-                     axisLine={false} 
-                     tickLine={false} 
-                     tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                     tickFormatter={(val) => `$${val > 1000 ? (val/1000).toFixed(0) + 'k' : val}`}
-                   />
-                   <Tooltip 
-                     contentStyle={{ 
-                       backgroundColor: "hsl(var(--background))", 
-                       borderColor: "hsl(var(--border))",
-                       borderRadius: "8px"
-                     }}
-                     itemStyle={{ color: "hsl(var(--foreground))" }}
-                     cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
-                   />
-                   <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                   <Bar dataKey="Income" fill={accentColor} radius={[4, 4, 0, 0]} maxBarSize={50} />
-                   <Bar dataKey="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                 </BarChart>
-               </ResponsiveContainer>
+               {chartData.length === 0 ? (
+                 <div className="flex flex-col items-center justify-center h-full text-center">
+                   <p className="text-muted-foreground mb-2">No data available for this period.</p>
+                   <p className="text-xs text-muted-foreground/70">Add transactions to see your financial performance chart.</p>
+                 </div>
+               ) : (
+                 <ResponsiveContainer width="100%" height="100%">
+                   <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                     <XAxis 
+                       dataKey="name" 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                     />
+                     <YAxis 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                       tickFormatter={(val) => `$${val > 1000 ? (val/1000).toFixed(0) + 'k' : val}`}
+                     />
+                     <Tooltip 
+                       contentStyle={{ 
+                         backgroundColor: "hsl(var(--background))", 
+                         borderColor: "hsl(var(--border))",
+                         borderRadius: "8px"
+                       }}
+                       itemStyle={{ color: "hsl(var(--foreground))" }}
+                       cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
+                       formatter={(value: number | undefined) => value !== undefined ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
+                     />
+                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                     <Bar dataKey="Income" fill={accentColor} radius={[4, 4, 0, 0]} maxBarSize={50} />
+                     <Bar dataKey="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                   </BarChart>
+                 </ResponsiveContainer>
+               )}
              </div>
           </CardContent>
         </Card>

@@ -61,7 +61,7 @@ export function TransactionsCRUD() {
       setEditItem(null);
       await refreshData();
     } else {
-      setError(result.error || "Error al guardar");
+      setError(result.error || "Error saving");
     }
   };
 
@@ -80,19 +80,19 @@ export function TransactionsCRUD() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Descripción</TableHead>
-              <TableHead>Categoría</TableHead>
-              <TableHead>Monto</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Esencial</TableHead>
-              <TableHead className="w-24">Acciones</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Essential</TableHead>
+              <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {transactions.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No hay transacciones.
+                  No transactions.
                 </TableCell>
               </TableRow>
             )}
@@ -134,22 +134,22 @@ export function TransactionsCRUD() {
       <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Transacción</DialogTitle>
+            <DialogTitle>Edit Transaction</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5">
-              <Label>Monto</Label>
+              <Label>Amount</Label>
               <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Descripción</Label>
+              <Label>Description</Label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Categoría</Label>
+              <Label>Category</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar categoría" />
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
@@ -159,19 +159,19 @@ export function TransactionsCRUD() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Fecha</Label>
+              <Label>Date</Label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div className="flex items-center gap-3">
               <Switch id="essential" checked={isEssential} onCheckedChange={setIsEssential} />
-              <Label htmlFor="essential">Es esencial</Label>
+              <Label htmlFor="essential">Essential</Label>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditItem(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Guardando…" : "Guardar"}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -181,13 +181,13 @@ export function TransactionsCRUD() {
       <Dialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer.</p>
+          <p className="text-sm text-muted-foreground">Are you sure you want to delete this transaction? This action cannot be undone.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={saving}>
-              {saving ? "Eliminando…" : "Eliminar"}
+              {saving ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

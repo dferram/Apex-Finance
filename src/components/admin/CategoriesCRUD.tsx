@@ -57,7 +57,7 @@ export function CategoriesCRUD() {
       setEditItem(null);
       await refreshData();
     } else {
-      setError(result.error || "Error al guardar");
+      setError(result.error || "Error saving");
     }
   };
 
@@ -70,7 +70,7 @@ export function CategoriesCRUD() {
       setDeleteId(null);
       await refreshData();
     } else {
-      setError(result.error || "Error al eliminar");
+      setError(result.error || "Error deleting");
     }
   };
 
@@ -83,18 +83,18 @@ export function CategoriesCRUD() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Padre</TableHead>
-              <TableHead>Presupuesto Mensual</TableHead>
-              <TableHead>Proyecto</TableHead>
-              <TableHead className="w-24">Acciones</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Parent</TableHead>
+              <TableHead>Monthly Budget</TableHead>
+              <TableHead>Project</TableHead>
+              <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {categories.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  No hay categorías.
+                  No categories.
                 </TableCell>
               </TableRow>
             )}
@@ -107,7 +107,7 @@ export function CategoriesCRUD() {
                   <TableCell>{cat.monthly_budget ? `$${Number(cat.monthly_budget).toLocaleString()}` : "—"}</TableCell>
                   <TableCell>
                     <Badge variant={cat.is_project ? "default" : "secondary"}>
-                      {cat.is_project ? "Sí" : "No"}
+                      {cat.is_project ? "Yes" : "No"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -131,21 +131,21 @@ export function CategoriesCRUD() {
       <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Categoría</DialogTitle>
+            <DialogTitle>Edit Category</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5">
-              <Label>Nombre</Label>
+              <Label>Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Categoría Padre</Label>
+              <Label>Parent Category</Label>
               <Select value={parentId} onValueChange={setParentId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Sin padre (raíz)" />
+                  <SelectValue placeholder="No parent (root)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Sin padre (raíz)</SelectItem>
+                  <SelectItem value="none">No parent (root)</SelectItem>
                   {parentCandidates.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
                   ))}
@@ -153,19 +153,19 @@ export function CategoriesCRUD() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Presupuesto Mensual</Label>
-              <Input type="number" value={monthlyBudget} onChange={(e) => setMonthlyBudget(e.target.value)} placeholder="Opcional" />
+              <Label>Monthly Budget</Label>
+              <Input type="number" value={monthlyBudget} onChange={(e) => setMonthlyBudget(e.target.value)} placeholder="Optional" />
             </div>
             <div className="flex items-center gap-3">
               <Switch id="is-project" checked={isProject} onCheckedChange={setIsProject} />
-              <Label htmlFor="is-project">Es proyecto</Label>
+              <Label htmlFor="is-project">Is Project</Label>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditItem(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Guardando…" : "Guardar"}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -175,16 +175,16 @@ export function CategoriesCRUD() {
       <Dialog open={deleteId !== null} onOpenChange={(open) => { if (!open) { setDeleteId(null); setError(null); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            ¿Estás seguro de que deseas eliminar esta categoría? Se verificará si tiene hijos o transacciones asociadas.
+            Are you sure you want to delete this category? It will check if it has children or associated transactions.
           </p>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeleteId(null); setError(null); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setDeleteId(null); setError(null); }}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={saving}>
-              {saving ? "Eliminando…" : "Eliminar"}
+              {saving ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
