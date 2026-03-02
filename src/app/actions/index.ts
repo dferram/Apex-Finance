@@ -12,7 +12,7 @@ export interface CategoryNode extends Category {
 
 export async function getWorkspaces() {
   try {
-    const data = await db.select().from(workspaces).orderBy(desc(workspaces.id));
+    const data = await db.select().from(workspaces).orderBy(workspaces.is_professional, desc(workspaces.id));
     return data;
   } catch (error) {
     console.error('Error fetching workspaces:', error);
@@ -96,9 +96,9 @@ export async function getCategoryTotalsHierarchical(workspaceId: number) {
   }
 }
 
-export async function getTransactions(workspaceId: number) {
+export async function getTransactions(workspaceId: number, limit?: number) {
   try {
-    const data = await db
+    const baseQuery = db
       .select({
         id: transactions.id,
         workspace_id: transactions.workspace_id,
@@ -113,8 +113,9 @@ export async function getTransactions(workspaceId: number) {
       .leftJoin(categories, eq(transactions.category_id, categories.id))
       .where(eq(transactions.workspace_id, workspaceId))
       .orderBy(desc(transactions.date), desc(transactions.id));
+    
+    const data = limit ? await baseQuery.limit(limit) : await baseQuery;
       
-    // Transform decimal to number
     return data.map(t => ({
       ...t,
       amount: Number(t.amount || 0),

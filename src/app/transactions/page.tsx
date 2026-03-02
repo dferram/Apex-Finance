@@ -1,7 +1,7 @@
 "use client";
 
 import { useApex } from "@/context/ApexContext";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import {
   Table,
@@ -21,10 +21,16 @@ import { CategoryDialog } from "@/components/transactions/CategoryDialog";
 export default function TransactionsPage() {
   const { transactions, categories, activeWorkspace } = useApex();
   const [searchTerm, setSearchTerm] = useState("");
+  const [displayLimit, setDisplayLimit] = useState(50);
 
-  const filteredTransactions = transactions.filter(t => 
-    t.description.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
+  const filteredTransactions = useMemo(() => {
+    const filtered = transactions.filter(t => 
+      t.description.toLowerCase().includes(searchTerm.toLowerCase())
+    ).sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
+    return filtered.slice(0, displayLimit);
+  }, [transactions, searchTerm, displayLimit]);
+
+  const hasMore = transactions.length > displayLimit;
 
   const isProf = activeWorkspace?.is_professional;
   const primaryBadgeColor = isProf ? "bg-blue-500/10 text-blue-500" : "bg-emerald-500/10 text-emerald-500";
@@ -84,33 +90,48 @@ export default function TransactionsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredTransactions.map((tx) => {
-                const cat = categories.find(c => c.id === tx.category_id);
-                const isIncome = tx.amount > 0;
-                
-                const amountClass = isIncome 
-                  ? (isProf ? "text-blue-500" : "text-emerald-500") 
-                  : "text-foreground";
+              <>
+                {filteredTransactions.map((tx) => {
+                  const cat = categories.find(c => c.id === tx.category_id);
+                  const isIncome = tx.amount > 0;
+                  
+                  const amountClass = isIncome 
+                    ? (isProf ? "text-blue-500" : "text-emerald-500") 
+                    : "text-foreground";
 
-                return (
-                  <TableRow key={tx.id} className="border-border/50 hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-mono text-sm text-muted-foreground pl-6">
-                      {tx.date ? format(tx.date, "MMM dd, yyyy") : "—"}
-                    </TableCell>
-                    <TableCell className="font-medium text-foreground/90">
-                      {tx.description}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={`text-xs px-2 py-0.5 rounded-sm font-medium ${tx.is_essential ? primaryBadgeColor : secondaryBadgeColor}`}>
-                        {cat?.name || "Uncategorized"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={`text-right font-mono text-base tracking-tight pr-6 ${amountClass}`}>
-                      {isIncome ? "+" : "-"}${Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  return (
+                    <TableRow key={tx.id} className="border-border/50 hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-mono text-sm text-muted-foreground pl-6">
+                        {tx.date ? format(tx.date, "MMM dd, yyyy") : "—"}
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground/90">
+                        {tx.description}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={`text-xs px-2 py-0.5 rounded-sm font-medium ${tx.is_essential ? primaryBadgeColor : secondaryBadgeColor}`}>
+                          {cat?.name || "Uncategorized"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className={`text-right font-mono text-base tracking-tight pr-6 ${amountClass}`}>
+                        {isIncome ? "+" : "-"}${Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {hasMore && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-16 text-center">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setDisplayLimit(prev => prev + 50)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        Load more transactions ({transactions.length - displayLimit} remaining)
+                      </Button>
                     </TableCell>
                   </TableRow>
-                );
-              })
+                )}
+              </>
             )}
           </TableBody>
         </Table>

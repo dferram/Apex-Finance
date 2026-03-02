@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useOptimistic, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useOptimistic, useRef, useCallback } from "react";
 import { getTransactions, getApexStats, getCategories, getCategoriesHierarchical, getCategoryTotalsHierarchical, getFinancialGoals, type CategoryNode } from "@/app/actions";
 import { type User, type Workspace, type Category, type TransactionWithCategory, type GoalWithNumbers } from "@/lib/schema";
 
@@ -52,13 +53,28 @@ export function ApexProvider({
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const hasLoadedData = useRef(false);
+  const dataCache = useRef<Map<number, { timestamp: number; data: any }>>(new Map());
+  const CACHE_DURATION = 30000; // 30 seconds
 
   const [optimisticTransactions, addOptimisticTransaction] = useOptimistic(
     transactions,
     (state, newTx: TransactionWithCategory) => [newTx, ...state]
   );
 
-  const loadWorkspaceData = async (workspaceId: number) => {
+  const loadWorkspaceData = useCallback(async (workspaceId: number, forceRefresh = false) => {
+    const cached = dataCache.current.get(workspaceId);
+    const now = Date.now();
+    
+    if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
+      setTransactions(cached.data.txs);
+      setStats(cached.data.stats);
+      setCategories(cached.data.cats);
+      setCategoriesHierarchical(cached.data.catsHier);
+      setCategoriesHierarchicalTotals(cached.data.totals);
+      setGoals(cached.data.goals);
+      return;
+    }
+
     try {
       const [txs, newStats, newCats, newCatsHier, newTotals, newGoals] = await Promise.all([
         getTransactions(workspaceId),
@@ -68,6 +84,10 @@ export function ApexProvider({
         getCategoryTotalsHierarchical(workspaceId),
         getFinancialGoals(user.id),
       ]);
+      
+      const data = { txs, stats: newStats, cats: newCats, catsHier: newCatsHier, totals: newTotals, goals: newGoals };
+      dataCache.current.set(workspaceId, { timestamp: now, data });
+      
       setTransactions(txs);
       setStats(newStats);
       setCategories(newCats);
@@ -77,39 +97,38 @@ export function ApexProvider({
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [user.id]);
 
   useEffect(() => {
     if (activeWorkspace && !hasLoadedData.current) {
       hasLoadedData.current = true;
       setIsInitializing(true);
-      loadWorkspaceData(activeWorkspace.id).finally(() => setIsInitializing(false));
+      loadWorkspaceData(activeWorkspace.id, false).finally(() => setIsInitializing(false));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeWorkspace]);
+  }, [activeWorkspace, loadWorkspaceData]);
 
-  const switchWorkspace = async (id: number) => {
+  const switchWorkspace = useCallback(async (id: number) => {
     setIsLoading(true);
     try {
       const workspace = workspaces.find((w) => w.id === id);
       if (workspace) {
         setActiveWorkspace(workspace);
-        await loadWorkspaceData(id);
+        await loadWorkspaceData(id, false);
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [workspaces, loadWorkspaceData]);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     if (!activeWorkspace) return;
     setIsLoading(true);
     try {
-      await loadWorkspaceData(activeWorkspace.id);
+      await loadWorkspaceData(activeWorkspace.id, true);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeWorkspace, loadWorkspaceData]);
 
   const apexScore = useMemo(() => {
     if (!activeWorkspace) return 100;
@@ -117,21 +136,28 @@ export function ApexProvider({
     let score = 100;
     const isProfessional = activeWorkspace.is_professional;
     
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let nonEssentialSpend = 0;
+    
+    for (const t of optimisticTransactions) {
+      if (t.amount > 0) {
+        totalIncome += t.amount;
+      } else {
+        totalExpense += Math.abs(t.amount);
+        if (!t.is_essential) {
+          nonEssentialSpend += Math.abs(t.amount);
+        }
+      }
+    }
+    
     if (!isProfessional) {
-      const expenses = optimisticTransactions.filter((t) => t.amount < 0);
-      const nonEssentialSpend = Math.abs(expenses.filter((t) => !t.is_essential).reduce((acc, curr) => acc + curr.amount, 0));
-      const income = optimisticTransactions.filter((t) => t.amount > 0).reduce((acc, curr) => acc + curr.amount, 0);
-      
-      const totalBudget = income > 0 ? income : 1;
+      const totalBudget = totalIncome > 0 ? totalIncome : 1;
       const penalty = (nonEssentialSpend / totalBudget) * 100;
       score = Math.max(0, 100 - penalty);
     } else {
-      const expenses = optimisticTransactions.filter((t) => t.amount < 0);
-      const burnRate = Math.abs(expenses.reduce((acc, curr) => acc + curr.amount, 0));
-      const income = optimisticTransactions.filter((t) => t.amount > 0).reduce((acc, curr) => acc + curr.amount, 0);
-      
-      const totalIncome = income > 0 ? income : 1;
-      const penalty = (burnRate / totalIncome) * 100;
+      const totalIncomeCalc = totalIncome > 0 ? totalIncome : 1;
+      const penalty = (totalExpense / totalIncomeCalc) * 100;
       score = Math.max(0, 100 - penalty);
     }
 

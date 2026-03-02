@@ -6,13 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Hexagon } from "lucide-react";
 
 export function Header() {
-  const { activeWorkspace, workspaces, setActiveWorkspace } = useApex();
+  const { activeWorkspace, workspaces, switchWorkspace } = useApex();
 
-  const handleToggle = (checked: boolean) => {
+  const handleToggle = async (checked: boolean) => {
     // True = Professional (xCore), False = Personal
     const nextWorkspace = workspaces.find(w => w.is_professional === checked);
-    if (nextWorkspace) {
-      setActiveWorkspace(nextWorkspace);
+    if (nextWorkspace && nextWorkspace.id !== activeWorkspace?.id) {
+      await switchWorkspace(nextWorkspace.id);
     }
   };
 
