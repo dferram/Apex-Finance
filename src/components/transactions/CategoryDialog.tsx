@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 
 export function CategoryDialog({ children, initialParentId }: { children?: React.ReactNode, initialParentId?: number }) {
-  const { activeWorkspace, categories } = useApex();
+  const { activeWorkspace, categories, refreshData } = useApex();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -42,6 +42,7 @@ export function CategoryDialog({ children, initialParentId }: { children?: React
         setBudget("");
         setParentId("root");
         setIsProject(false);
+        await refreshData();
       }
     } catch (error) {
       console.error(error);

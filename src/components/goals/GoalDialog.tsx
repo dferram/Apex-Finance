@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 
 export function GoalDialog({ children }: { children?: React.ReactNode }) {
-  const { user, activeWorkspace } = useApex();
+  const { user, activeWorkspace, refreshData } = useApex();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -42,6 +42,7 @@ export function GoalDialog({ children }: { children?: React.ReactNode }) {
         setName("");
         setTarget("");
         setDeadline("");
+        await refreshData();
       }
     } catch (error) {
       console.error(error);
