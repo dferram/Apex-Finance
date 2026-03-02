@@ -1,7 +1,8 @@
 "use client";
 
+import { useTransition, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, BarChart3, Target, Sparkles, Boxes, Settings } from "lucide-react";
+import { LayoutDashboard, Receipt, BarChart3, Target, Sparkles, Boxes, Settings, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -17,17 +18,28 @@ const items = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  const handleNav = (href: string) => {
+    setPendingHref(href);
+    startTransition(() => {
+      router.push(href);
+    });
+  };
 
   return (
     <div className="w-64 border-r border-border bg-background pt-6 shrink-0 hidden md:block flex flex-col h-full relative z-30">
       <nav className="flex flex-col gap-2 px-4 flex-1">
         {items.map((item) => {
           const isActive = pathname === item.href;
+          const isNavigating = isPending && pendingHref === item.href;
           const Icon = item.icon;
           return (
             <button
               key={item.href}
-              onClick={() => router.push(item.href)}
+              onClick={() => handleNav(item.href)}
+              disabled={isNavigating}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors w-full text-left",
                 isActive
@@ -35,7 +47,11 @@ export function Sidebar() {
                   : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               )}
             >
-              <Icon className="h-5 w-5" />
+              {isNavigating ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Icon className="h-5 w-5" />
+              )}
               {item.label}
             </button>
           );

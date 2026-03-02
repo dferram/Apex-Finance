@@ -3,9 +3,9 @@ import "./globals.css";
 import { ApexProvider } from "@/context/ApexContext";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { AppLoadingSkeleton } from "@/components/layout/AppLoadingSkeleton";
 
-import { getWorkspaces, getTransactions, getApexStats, getCategories, getFinancialGoals, getCategoriesHierarchical, getCategoryTotalsHierarchical } from "@/app/actions";
-import { type TransactionWithCategory, type Category, type GoalWithNumbers } from "@/lib/schema";
+import { getWorkspaces } from "@/app/actions";
 
 export const metadata: Metadata = {
   title: "Apex Finance | Intelligence Platform",
@@ -21,37 +21,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const workspaces = await getWorkspaces();
-  const activeWorkspace = workspaces.length > 0 ? workspaces[0] : null;
-  const goals: GoalWithNumbers[] = await getFinancialGoals(1); // Mock user ID 1
-
-  let transactions: TransactionWithCategory[] = [];
-  let categories: Category[] = [];
-  let categoriesHierarchical: Awaited<ReturnType<typeof getCategoriesHierarchical>> = [];
-  let categoriesHierarchicalTotals: { category_id: number; total_amount: string }[] = [];
-  let stats = { totalBalance: 0, weeklyExpense: 0, totalIncome: 0, totalExpense: 0 };
-
-  if (activeWorkspace) {
-    [transactions, categories, categoriesHierarchical, categoriesHierarchicalTotals, stats] = await Promise.all([
-      getTransactions(activeWorkspace.id),
-      getCategories(activeWorkspace.id),
-      getCategoriesHierarchical(activeWorkspace.id),
-      getCategoryTotalsHierarchical(activeWorkspace.id),
-      getApexStats(activeWorkspace.id)
-    ]);
-  }
 
   return (
     <html lang="en" className="dark">
       <body className={`min-h-screen bg-background antialiased selection:bg-workspace/30 selection:text-workspace font-sans`}>
         <ApexProvider 
           initialWorkspaces={workspaces}
-          initialActiveWorkspace={activeWorkspace}
-          initialTransactions={transactions}
-          initialCategories={categories}
-          initialCategoriesHierarchical={categoriesHierarchical}
-          initialCategoriesHierarchicalTotals={categoriesHierarchicalTotals}
-          initialStats={stats}
-          initialGoals={goals}
         >
           <div className="relative flex min-h-screen flex-col">
             <Header />
@@ -59,7 +34,9 @@ export default async function RootLayout({
               <Sidebar />
               <main className="flex-1 overflow-y-auto bg-muted/20">
                 <div className="container p-6 pb-24 mx-auto max-w-7xl">
-                  {children}
+                  <AppLoadingSkeleton>
+                    {children}
+                  </AppLoadingSkeleton>
                 </div>
               </main>
             </div>

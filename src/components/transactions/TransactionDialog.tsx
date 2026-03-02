@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 
 export function TransactionDialog({ children }: { children?: React.ReactNode }) {
-  const { activeWorkspace, categoriesHierarchical, addOptimisticTransaction } = useApex();
+  const { activeWorkspace, categoriesHierarchical, addOptimisticTransaction, refreshData } = useApex();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -51,6 +51,7 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
 
     try {
       await createTransaction(newTxData);
+      await refreshData();
     } catch (error) {
       console.error(error);
     } finally {

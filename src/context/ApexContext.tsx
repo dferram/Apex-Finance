@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useOptimistic, useTransition } from "react";
-import { getTransactions, getApexStats, getCategories, getCategoriesHierarchical, getCategoryTotalsHierarchical, type CategoryNode } from "@/app/actions";
+import React, { createContext, useContext, useState, useEffect, useMemo, useOptimistic, useRef } from "react";
+import { getTransactions, getApexStats, getCategories, getCategoriesHierarchical, getCategoryTotalsHierarchical, getFinancialGoals, type CategoryNode } from "@/app/actions";
 import { type User, type Workspace, type Category, type TransactionWithCategory, type GoalWithNumbers } from "@/lib/schema";
 
 interface ApexStats {
@@ -24,6 +24,7 @@ interface ApexContextType {
   apexScore: number;
   stats: ApexStats;
   isLoading: boolean;
+  isInitializing: boolean;
   switchWorkspace: (id: number) => Promise<void>;
   addOptimisticTransaction: (tx: TransactionWithCategory) => void;
   refreshData: () => Promise<void>;
@@ -34,43 +35,58 @@ const ApexContext = createContext<ApexContextType | undefined>(undefined);
 export function ApexProvider({ 
   children,
   initialWorkspaces = [],
-  initialActiveWorkspace = null,
-  initialTransactions = [],
-  initialCategories = [],
-  initialCategoriesHierarchical = [],
-  initialCategoriesHierarchicalTotals = [],
-  initialStats = { totalBalance: 0, weeklyExpense: 0, totalIncome: 0, totalExpense: 0 },
-  initialGoals = []
-
 }: { 
   children: React.ReactNode;
   initialWorkspaces?: Workspace[];
-  initialActiveWorkspace?: Workspace | null;
-  initialTransactions?: TransactionWithCategory[];
-  initialCategories?: Category[];
-  initialCategoriesHierarchical?: CategoryNode[];
-  initialCategoriesHierarchicalTotals?: { category_id: number; total_amount: string }[];
-  initialStats?: ApexStats;
-  initialGoals?: GoalWithNumbers[];
-
 }) {
   const [user] = useState<User>({ id: 1, name: 'Usuario', email: 'usuario@ejemplo.com', created_at: new Date() });
   const [workspaces] = useState<Workspace[]>(initialWorkspaces);
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(initialActiveWorkspace);
-  const [transactions, setTransactions] = useState<TransactionWithCategory[]>(initialTransactions);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [categoriesHierarchical, setCategoriesHierarchical] = useState<CategoryNode[]>(initialCategoriesHierarchical);
-  const [categoriesHierarchicalTotals, setCategoriesHierarchicalTotals] = useState<{ category_id: number; total_amount: string }[]>(initialCategoriesHierarchicalTotals);
-  const [stats, setStats] = useState<ApexStats>(initialStats);
-  const [goals] = useState<GoalWithNumbers[]>(initialGoals);      
-  
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(initialWorkspaces[0] ?? null);
+  const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesHierarchical, setCategoriesHierarchical] = useState<CategoryNode[]>([]);
+  const [categoriesHierarchicalTotals, setCategoriesHierarchicalTotals] = useState<{ category_id: number; total_amount: string }[]>([]);
+  const [stats, setStats] = useState<ApexStats>({ totalBalance: 0, weeklyExpense: 0, totalIncome: 0, totalExpense: 0 });
+  const [goals, setGoals] = useState<GoalWithNumbers[]>([]);
+
   const [isLoading, setIsLoading] = useState(false);
-  const [isPending, startTransitionSwitch] = useTransition();
+  const [isInitializing, setIsInitializing] = useState(false);
+  const hasLoadedData = useRef(false);
 
   const [optimisticTransactions, addOptimisticTransaction] = useOptimistic(
     transactions,
     (state, newTx: TransactionWithCategory) => [newTx, ...state]
   );
+
+  const loadWorkspaceData = async (workspaceId: number) => {
+    try {
+      const [txs, newStats, newCats, newCatsHier, newTotals, newGoals] = await Promise.all([
+        getTransactions(workspaceId),
+        getApexStats(workspaceId),
+        getCategories(workspaceId),
+        getCategoriesHierarchical(workspaceId),
+        getCategoryTotalsHierarchical(workspaceId),
+        getFinancialGoals(user.id),
+      ]);
+      setTransactions(txs);
+      setStats(newStats);
+      setCategories(newCats);
+      setCategoriesHierarchical(newCatsHier);
+      setCategoriesHierarchicalTotals(newTotals);
+      setGoals(newGoals);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeWorkspace && !hasLoadedData.current) {
+      hasLoadedData.current = true;
+      setIsInitializing(true);
+      loadWorkspaceData(activeWorkspace.id).finally(() => setIsInitializing(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkspace]);
 
   const switchWorkspace = async (id: number) => {
     setIsLoading(true);
@@ -78,25 +94,8 @@ export function ApexProvider({
       const workspace = workspaces.find((w) => w.id === id);
       if (workspace) {
         setActiveWorkspace(workspace);
-        
-        const [txs, newStats, newCats, newCatsHier, newTotals] = await Promise.all([
-          getTransactions(id),
-          getApexStats(id),
-          getCategories(id),
-          getCategoriesHierarchical(id),
-          getCategoryTotalsHierarchical(id)
-        ]);
-        
-        startTransitionSwitch(() => {
-          setTransactions(txs);
-          setStats(newStats);
-          setCategories(newCats);
-          setCategoriesHierarchical(newCatsHier);
-          setCategoriesHierarchicalTotals(newTotals);
-        });
+        await loadWorkspaceData(id);
       }
-    } catch (e) {
-      console.error(e);
     } finally {
       setIsLoading(false);
     }
@@ -106,22 +105,7 @@ export function ApexProvider({
     if (!activeWorkspace) return;
     setIsLoading(true);
     try {
-      const [txs, newStats, newCats, newCatsHier, newTotals] = await Promise.all([
-        getTransactions(activeWorkspace.id),
-        getApexStats(activeWorkspace.id),
-        getCategories(activeWorkspace.id),
-        getCategoriesHierarchical(activeWorkspace.id),
-        getCategoryTotalsHierarchical(activeWorkspace.id)
-      ]);
-      startTransitionSwitch(() => {
-        setTransactions(txs);
-        setStats(newStats);
-        setCategories(newCats);
-        setCategoriesHierarchical(newCatsHier);
-        setCategoriesHierarchicalTotals(newTotals);
-      });
-    } catch (e) {
-      console.error(e);
+      await loadWorkspaceData(activeWorkspace.id);
     } finally {
       setIsLoading(false);
     }
@@ -174,7 +158,8 @@ export function ApexProvider({
     goals,
     apexScore,
     stats,
-    isLoading: isLoading || isPending,
+    isLoading,
+    isInitializing,
     switchWorkspace,
     addOptimisticTransaction,
     refreshData,
