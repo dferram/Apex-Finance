@@ -41,5 +41,15 @@ export const financial_goals = pgTable('financial_goals', {
   target_amount: numeric('target_amount', { precision: 12, scale: 2 }).notNull(),
   current_amount: numeric('current_amount', { precision: 12, scale: 2 }).default('0').notNull(),
   deadline: timestamp('deadline'),
+  goal_type: text('goal_type').default('savings').notNull(), // 'savings', 'valuation', 'profit'
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const partners = pgTable('partners', {
+  id: serial('id').primaryKey(),
+  workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
+  name: text('name').notNull(),
+  percentage: numeric('percentage', { precision: 5, scale: 2 }).notNull(), // 0.00 to 100.00
+  email: text('email'),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });

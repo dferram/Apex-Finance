@@ -12,6 +12,9 @@ import { TreeView, type TreeItemProps } from "@/components/ui/TreeView";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { CategoryNode } from "@/app/actions";
+import { CompanyValuation } from "@/components/professional/CompanyValuation";
+import { ProfitDistribution } from "@/components/professional/ProfitDistribution";
+import { calculateFinancialMetrics } from "@/lib/companyValuation";
 
 interface TreeItem extends CategoryNode {
   amount: number;
@@ -42,21 +45,18 @@ export default function ReportsPage() {
       const txDate = tx.date ? new Date(tx.date) : null;
       if (!txDate) return;
 
+      // Skip future dates only
+      if (txDate.getTime() > now.getTime()) return;
+
       if (filterRange === 'day') {
-        const diffDays = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays < 0 || diffDays > 30) return; // Skip future dates and dates older than 30 days
         key = txDate.toISOString().split('T')[0];
         name = txDate.toLocaleDateString('default', { day: '2-digit', month: 'short' });
       } else if (filterRange === 'week') {
-        const diffWeeks = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
-        if (diffWeeks < 0 || diffWeeks > 12) return; // Skip future dates and dates older than 12 weeks
         const weekStart = new Date(txDate);
         weekStart.setDate(txDate.getDate() - txDate.getDay());
         key = weekStart.toISOString().split('T')[0];
         name = `W${Math.ceil(txDate.getDate() / 7)} ${txDate.toLocaleString('default', { month: 'short' })}`;
       } else {
-        const diffMonths = (now.getFullYear() - txDate.getFullYear()) * 12 + (now.getMonth() - txDate.getMonth());
-        if (diffMonths < 0 || diffMonths > 12) return; // Skip future dates and dates older than 12 months
         key = `${txDate.getFullYear()}-${txDate.getMonth()}`;
         name = txDate.toLocaleString('default', { month: 'short', year: txDate.getFullYear() !== now.getFullYear() ? '2-digit' : undefined });
       }
@@ -90,6 +90,22 @@ export default function ReportsPage() {
     if (totalExpenses === 0) return 0;
     return Math.round((essentialExpenses / totalExpenses) * 100);
   }, [transactions]);
+
+  // Calculate profit for professional workspace (must be before early return)
+  const profitMetrics = useMemo(() => {
+    if (!activeWorkspace?.is_professional) return null;
+    // Filter out transactions with null dates for metrics calculation
+    const validTransactions = transactions.filter(t => t.date !== null).map(t => ({
+      amount: t.amount,
+      date: t.date as Date,
+      category: t.category ? { name: t.category.name } : undefined
+    }));
+    return calculateFinancialMetrics(validTransactions);
+  }, [transactions, activeWorkspace]);
+
+  const totalProfit = profitMetrics 
+    ? profitMetrics.annualRevenue - profitMetrics.annualExpenses 
+    : 0;
 
   const treeData = useMemo(() => {
     const map: Record<number, TreeItem> = {};
@@ -314,6 +330,31 @@ export default function ReportsPage() {
           </div>
         </div>
       </Tabs>
+
+      {/* Professional Workspace: Company Valuation & Profit Distribution */}
+      {isProf && profitMetrics && (
+        <div className="space-y-6 mt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-workspace/30 to-transparent" />
+            <h2 className="text-sm font-semibold text-workspace uppercase tracking-wider">Professional Analytics</h2>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-workspace/30 to-transparent" />
+          </div>
+          
+          <CompanyValuation 
+            transactions={transactions.filter(t => t.date !== null).map(t => ({
+              amount: t.amount,
+              date: t.date as Date,
+              category: t.category ? { name: t.category.name } : undefined
+            }))}
+            companyType="mixed"
+          />
+          
+          <ProfitDistribution 
+            totalProfit={totalProfit}
+            workspaceId={activeWorkspace.id}
+          />
+        </div>
+      )}
     </div>
   );
 }
