@@ -32,12 +32,20 @@ export default function ReportsPage() {
   const { transactions, activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals, isInitializing, refreshData } = useApex();
   
   const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'budget'>('month');
+  const [reportReady, setReportReady] = useState(false);
 
-  // Refresh data when opening Reports so the report always reflects latest data (real-time)
+  // Load and refresh report data when opening Reports so it always reflects latest (real-time)
   useEffect(() => {
-    if (activeWorkspace && !isInitializing) {
-      refreshData();
+    if (!activeWorkspace || isInitializing) {
+      setReportReady(false);
+      return;
     }
+    setReportReady(false);
+    let cancelled = false;
+    refreshData().then(() => {
+      if (!cancelled) setReportReady(true);
+    });
+    return () => { cancelled = true; };
   }, [activeWorkspace?.id, isInitializing]);
 
   // Calculate aggregated data based on filter
@@ -49,7 +57,8 @@ export default function ReportsPage() {
     transactions.forEach(tx => {
       let key = "";
       let name = "";
-      const txDate = tx.date ? new Date(tx.date) : null;
+      // Include transactions without date in current period so they always show in the report
+      const txDate = tx.date ? new Date(tx.date) : new Date(now.getFullYear(), now.getMonth(), 1);
       if (!txDate) return;
 
       // Skip future dates only
@@ -182,6 +191,23 @@ export default function ReportsPage() {
   }
 
   if (isInitializing) {
+    return (
+      <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold tracking-tight">Financial Intelligence Reports</h1>
+            <p className="text-muted-foreground mt-1 text-sm">Deep dive analytics and historical performance.</p>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-workspace" />
+          <p className="text-muted-foreground">Loading report data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!reportReady) {
     return (
       <div className="flex flex-col gap-6 animate-in fade-in duration-500">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
