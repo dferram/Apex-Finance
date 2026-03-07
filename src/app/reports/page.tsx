@@ -3,8 +3,8 @@
 import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { useMemo, useState } from "react";
-import { FileText, Sparkles, Target } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { FileText, Sparkles, Target, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -29,9 +29,16 @@ interface ChartDataItem {
 }
 
 export default function ReportsPage() {
-  const { transactions, activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals } = useApex();
+  const { transactions, activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals, isInitializing, refreshData } = useApex();
   
   const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'budget'>('month');
+
+  // Refresh data when opening Reports so the report always reflects latest data (real-time)
+  useEffect(() => {
+    if (activeWorkspace && !isInitializing) {
+      refreshData();
+    }
+  }, [activeWorkspace?.id, isInitializing]);
 
   // Calculate aggregated data based on filter
   const chartData = useMemo<ChartDataItem[]>(() => {
@@ -170,6 +177,23 @@ export default function ReportsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <p className="text-muted-foreground">Please select a workspace to view reports.</p>
+      </div>
+    );
+  }
+
+  if (isInitializing) {
+    return (
+      <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold tracking-tight">Financial Intelligence Reports</h1>
+            <p className="text-muted-foreground mt-1 text-sm">Deep dive analytics and historical performance.</p>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-workspace" />
+          <p className="text-muted-foreground">Loading report data...</p>
+        </div>
       </div>
     );
   }
