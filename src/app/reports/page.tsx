@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { TreeView, type TreeItemProps } from "@/components/ui/TreeView";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { CategoryNode } from "@/app/actions";
+import { CategoryNode, getReportChartData, type ReportChartItem } from "@/app/actions";
 import { CompanyValuation } from "@/components/professional/CompanyValuation";
 import { ProfitDistribution } from "@/components/professional/ProfitDistribution";
 import { calculateFinancialMetrics } from "@/lib/companyValuation";
@@ -22,89 +22,43 @@ interface TreeItem extends CategoryNode {
   children: TreeItem[];
 }
 
-interface ChartDataItem {
-  name: string;
-  Income: number;
-  Expenses: number;
-}
-
 export default function ReportsPage() {
   const { transactions, activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals, isInitializing, refreshData } = useApex();
-  
+
   const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'budget'>('month');
   const [reportReady, setReportReady] = useState(false);
+  const [chartData, setChartData] = useState<ReportChartItem[]>([]);
 
-  // Load and refresh report data when opening Reports so it always reflects latest (real-time)
+  // Load and refresh report data when opening Reports; fetch chart data from server so it always has data
   useEffect(() => {
     if (!activeWorkspace || isInitializing) {
       setReportReady(false);
+      setChartData([]);
       return;
     }
     setReportReady(false);
     let cancelled = false;
-    refreshData().then(() => {
-      if (!cancelled) setReportReady(true);
-    });
+    Promise.all([
+      refreshData(),
+      getReportChartData(activeWorkspace.id, filterRange === "budget" ? "month" : filterRange),
+    ])
+      .then(([, data]) => {
+        if (!cancelled) {
+          setReportReady(true);
+          setChartData(data);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setReportReady(true);
+      });
     return () => { cancelled = true; };
-  }, [activeWorkspace?.id, isInitializing]);
+  }, [activeWorkspace?.id, isInitializing, filterRange]);
 
-  // Calculate aggregated data based on filter (scoped by period: last 31 days / 12 weeks / 12 months)
-  const chartData = useMemo<ChartDataItem[]>(() => {
-    if (!activeWorkspace) return [];
-    const now = new Date();
-    const rangeStart = new Date();
-    if (filterRange === 'day') {
-      rangeStart.setDate(now.getDate() - 31);
-    } else if (filterRange === 'week') {
-      rangeStart.setDate(now.getDate() - 12 * 7);
-    } else {
-      rangeStart.setMonth(now.getMonth() - 12);
-    }
-    rangeStart.setHours(0, 0, 0, 0);
-
-    const data: Record<string, { income: number; expenses: number; name: string; timestamp: number }> = {};
-
-    transactions.forEach(tx => {
-      const txDate = tx.date ? new Date(tx.date) : new Date(now.getFullYear(), now.getMonth(), 1);
-      if (!txDate || txDate.getTime() > now.getTime()) return;
-      if (txDate.getTime() < rangeStart.getTime()) return;
-
-      let key = "";
-      let name = "";
-      if (filterRange === 'day') {
-        key = txDate.toISOString().split('T')[0];
-        name = txDate.toLocaleDateString('default', { day: '2-digit', month: 'short' });
-      } else if (filterRange === 'week') {
-        const weekStart = new Date(txDate);
-        weekStart.setDate(txDate.getDate() - txDate.getDay());
-        weekStart.setHours(0, 0, 0, 0);
-        key = weekStart.toISOString().split('T')[0];
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        name = `${weekStart.toLocaleDateString('default', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('default', { month: 'short', day: 'numeric' })}`;
-      } else {
-        key = `${txDate.getFullYear()}-${txDate.getMonth()}`;
-        name = txDate.toLocaleString('default', { month: 'short', year: txDate.getFullYear() !== now.getFullYear() ? '2-digit' : undefined });
-      }
-
-      if (!data[key]) {
-        data[key] = { income: 0, expenses: 0, name, timestamp: txDate.getTime() };
-      }
-      if (tx.amount > 0) {
-        data[key].income += tx.amount;
-      } else {
-        data[key].expenses += Math.abs(tx.amount);
-      }
-    });
-
-    return Object.values(data)
-      .sort((a, b) => a.timestamp - b.timestamp)
-      .map(m => ({
-        name: m.name,
-        Income: m.income,
-        Expenses: m.expenses
-      }));
-  }, [transactions, filterRange, activeWorkspace]);
+  // Re-fetch chart when only filterRange changes (already have workspace)
+  useEffect(() => {
+    if (!activeWorkspace?.id || filterRange === "budget") return;
+    getReportChartData(activeWorkspace.id, filterRange).then(setChartData);
+  }, [filterRange, activeWorkspace?.id]);
 
   // Insights Data
   const essentialRatio = useMemo(() => {
@@ -156,71 +110,94 @@ export default function ReportsPage() {
     return roots;
   }, [categoriesHierarchical, categoriesHierarchicalTotals]);
 
-  // PDF Export Function
-  const exportToPDF = () => {
+  // PDF Export: use PNG logo from /logo.png, improved layout
+  const exportToPDF = async () => {
     if (!activeWorkspace) return;
     const doc = new jsPDF();
+    const pageW = 210; // A4
+    const pageH = 297;
+    const margin = 18;
+    let logoDataUrl: string | null = null;
 
-    // Logo: draw hexagon on canvas and add to PDF (workspace color)
-    const logoSize = 14;
-    const logoX = 14;
-    const logoY = 10;
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      const cx = 32;
-      const cy = 32;
-      const r = 28;
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const a = (Math.PI / 3) * i - Math.PI / 6;
-        const x = cx + r * Math.cos(a);
-        const y = cy + r * Math.sin(a);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+    try {
+      const res = await fetch("/logo.png");
+      if (res.ok) {
+        const blob = await res.blob();
+        logoDataUrl = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result as string);
+          r.onerror = reject;
+          r.readAsDataURL(blob);
+        });
       }
-      ctx.closePath();
-      ctx.fillStyle = activeWorkspace.is_professional ? "#3b82f6" : "#10b981";
-      ctx.fill();
-      ctx.strokeStyle = activeWorkspace.is_professional ? "#2563eb" : "#059669";
-      ctx.lineWidth = 3;
-      ctx.stroke();
+    } catch {
+      // no logo
     }
-    const logoDataUrl = canvas.toDataURL("image/png");
-    doc.addImage(logoDataUrl, "PNG", logoX, logoY, logoSize, logoSize);
 
-    // Title next to logo
-    const titleX = logoX + logoSize + 8;
-    const titleY = logoY + logoSize / 2 + 2;
-    doc.setFontSize(20);
-    doc.setTextColor(40);
-    doc.text("Apex Finance - Intelligence Report", titleX, titleY);
+    const logoSize = 16;
+    const logoX = margin;
+    const logoY = 14;
+    if (logoDataUrl) {
+      doc.addImage(logoDataUrl, "PNG", logoX, logoY, logoSize, logoSize);
+    }
 
-    // Metadata below (aligned with title)
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Workspace: ${activeWorkspace.name} (${activeWorkspace.is_professional ? "xCore" : "Personal"})`, 14, titleY + 12);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, titleY + 17);
-    doc.text(`View: ${filterRange.toUpperCase()} — ${filterRange === "day" ? "Last 31 days" : filterRange === "week" ? "Last 12 weeks" : "Last 12 months"}`, 14, titleY + 22);
+    const titleX = logoX + (logoDataUrl ? logoSize + 10 : 0);
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 40);
+    doc.text("Apex Finance", titleX, logoY + 6);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 110);
+    doc.text("Intelligence Report", titleX, logoY + 12);
 
-    // Table
-    const tableData = chartData.map(d => [
+    const headerBottom = logoY + logoSize + 12;
+    doc.setDrawColor(220, 220, 225);
+    doc.setLineWidth(0.3);
+    doc.line(margin, headerBottom, pageW - margin, headerBottom);
+
+    doc.setFontSize(9);
+    doc.setTextColor(90, 90, 100);
+    doc.text(`Workspace: ${activeWorkspace.name} (${activeWorkspace.is_professional ? "xCore" : "Personal"})`, margin, headerBottom + 10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, headerBottom + 15);
+    doc.text(`View: ${filterRange === "day" ? "Daily — Last 31 days" : filterRange === "week" ? "Weekly — Last 12 weeks" : "Monthly — Last 12 months"}`, margin, headerBottom + 20);
+
+    const tableStartY = headerBottom + 28;
+    const tableData = chartData.map((d) => [
       d.name,
-      `$${d.Income.toLocaleString()}`,
-      `$${d.Expenses.toLocaleString()}`,
-      `$${(d.Income - d.Expenses).toLocaleString()}`
+      `$${d.Income.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `$${d.Expenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `$${(d.Income - d.Expenses).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     ]);
 
-    const startY = titleY + 32;
+    const accent: [number, number, number] = activeWorkspace.is_professional ? [59, 130, 246] : [16, 185, 129];
     autoTable(doc, {
-      startY,
+      startY: tableStartY,
       head: [["Period", "Income", "Expenses", "Net"]],
       body: tableData,
-      theme: "grid",
-      headStyles: { fillColor: activeWorkspace.is_professional ? [59, 130, 246] : [16, 185, 129] },
+      theme: "striped",
+      headStyles: {
+        fillColor: accent,
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 10,
+        cellPadding: 4,
+      },
+      bodyStyles: { fontSize: 9, textColor: 50, cellPadding: 3 },
+      alternateRowStyles: { fillColor: [248, 248, 250] },
+      margin: { left: margin, right: margin },
+      tableLineColor: [220, 220, 225],
+      tableLineWidth: 0.2,
     });
+
+    const footerY = pageH - 14;
+    doc.setDrawColor(240, 240, 242);
+    doc.setLineWidth(0.2);
+    doc.line(margin, footerY - 6, pageW - margin, footerY - 6);
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 150);
+    doc.text("Apex Finance — Confidential. Generated for internal use.", margin, footerY);
+    doc.text(`Page 1`, pageW - margin - doc.getTextWidth("Page 1"), footerY);
 
     doc.save(`Apex_Finance_Report_${filterRange}_${new Date().toISOString().split("T")[0]}.pdf`);
   };

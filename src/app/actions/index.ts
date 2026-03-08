@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { workspaces, transactions, categories, financial_goals, partners, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
 import { eq, desc, sum, sql, and, gte, lte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { toCalendarDateKey } from '@/lib/dateUtils';
 
 export interface CategoryNode extends Category {
   full_path: string;
@@ -165,33 +166,28 @@ export async function getTransactionsByDateRange(
   }
 }
 
-/** Daily income/expense totals for the last 30 days. Used by Cash Flow Pulse so it always has data from DB. */
+/** Daily income/expense totals: 15 days before today, today, 14 days after (today in center). Fetches all txs for workspace then filters in JS to avoid DB date/timezone issues. */
 export async function getCashFlowPulseData(workspaceId: number): Promise<
   { dateKey: string; dateLabel: string; Income: number; Expenses: number; Balance: number; Accumulated: number }[]
 > {
   try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
-
     const txs = await db
       .select({ date: transactions.date, amount: transactions.amount })
       .from(transactions)
-      .where(
-        and(
-          eq(transactions.workspace_id, workspaceId),
-          gte(transactions.date, thirtyDaysAgo)
-        )
-      );
+      .where(eq(transactions.workspace_id, workspaceId));
 
+    const now = new Date();
     const dayMap = new Map<string, { Income: number; Expenses: number }>();
+
     for (const t of txs) {
-      if (!t.date) continue;
-      const d = t.date instanceof Date ? t.date : new Date(t.date);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dateKey = `${y}-${m}-${day}`;
+      const dateKey = getTxDateKey(t.date, now);
+      const d = parseDateKey(dateKey);
+      if (!d || d.getTime() > now.getTime()) continue;
+      const diffDays = Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+      if (diffDays > 15) continue;
+      const future = Math.floor((d.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      if (future > 14) continue;
+
       const val = Number(t.amount || 0);
       const current = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
       if (val > 0) current.Income += val;
@@ -200,30 +196,186 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
     }
 
     const result: { dateKey: string; dateLabel: string; Income: number; Expenses: number; Balance: number; Accumulated: number }[] = [];
-    const today = new Date();
     let accumulated = 0;
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dateKey = `${y}-${m}-${day}`;
+    for (let i = -15; i <= 14; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + i);
+      d.setHours(0, 0, 0, 0);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const { Income, Expenses } = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
       const Balance = Income - Expenses;
       accumulated += Balance;
       result.push({
         dateKey,
-        dateLabel: d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+        dateLabel: d.toLocaleDateString("en-US", { month: "short", day: "2-digit" }),
         Income,
         Expenses,
         Balance,
         Accumulated: accumulated,
       });
     }
+
     return result;
   } catch (error) {
-    console.error('Error fetching cash flow pulse data:', error);
+    console.error("Error fetching cash flow pulse data:", error);
+    return [];
+  }
+}
+
+/** Date key for a tx; if date is null (DB has no date), use today so the tx still appears in charts. */
+function getTxDateKey(date: unknown, fallbackNow: Date): string {
+  const key = getDateKey(date);
+  if (key) return key;
+  return toCalendarDateKey(fallbackNow) ?? `${fallbackNow.getFullYear()}-${String(fallbackNow.getMonth() + 1).padStart(2, "0")}-${String(fallbackNow.getDate()).padStart(2, "0")}`;
+}
+
+/** Safe date key (YYYY-MM-DD) from DB value; never throws. Handles Date, string, number, and Date-like objects from pg driver. */
+function getDateKey(date: unknown): string | null {
+  if (date == null) return null;
+  if (typeof date === 'number' && !Number.isNaN(date)) {
+    const key = toCalendarDateKey(new Date(date));
+    return key && !key.includes('NaN') ? key : null;
+  }
+  if (typeof date === 'string' || date instanceof Date) {
+    const key = toCalendarDateKey(date);
+    return key && !key.includes('NaN') ? key : null;
+  }
+  // Objeto tipo Date (p. ej. node-pg puede devolver objetos con toISOString)
+  if (typeof date === 'object' && date !== null) {
+    const o = date as { toISOString?: () => string; getTime?: () => number; valueOf?: () => number };
+    let d: Date | null = null;
+    if (typeof o.toISOString === 'function') {
+      try {
+        d = new Date(o.toISOString());
+      } catch {
+        return null;
+      }
+    } else if (typeof o.getTime === 'function') {
+      const t = o.getTime();
+      if (typeof t === 'number' && !Number.isNaN(t)) d = new Date(t);
+    } else if (typeof o.valueOf === 'function') {
+      const t = o.valueOf();
+      if (typeof t === 'number' && !Number.isNaN(t)) d = new Date(t);
+    }
+    if (d && !Number.isNaN(d.getTime())) {
+      const key = toCalendarDateKey(d);
+      return key && !key.includes('NaN') ? key : null;
+    }
+  }
+  return null;
+}
+
+function parseDateKey(key: string): Date | null {
+  const [y, m, d] = key.split("-").map(Number);
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return null;
+  const date = new Date(y, m - 1, d);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export type ReportChartItem = { name: string; Income: number; Expenses: number };
+
+/** Report chart data from server so Reports page always has data (day/week/month, current period in center). */
+export async function getReportChartData(
+  workspaceId: number,
+  filterRange: "day" | "week" | "month"
+): Promise<ReportChartItem[]> {
+  try {
+    const txs = await db
+      .select({ date: transactions.date, amount: transactions.amount })
+      .from(transactions)
+      .where(eq(transactions.workspace_id, workspaceId));
+
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+
+    if (filterRange === "day") {
+      const dayTotals = new Map<string, { income: number; expenses: number }>();
+      for (const tx of txs) {
+        const key = getTxDateKey(tx.date, now);
+        const txDate = parseDateKey(key);
+        if (txDate && txDate.getTime() > now.getTime()) continue;
+        if (!dayTotals.has(key)) dayTotals.set(key, { income: 0, expenses: 0 });
+        const t = dayTotals.get(key)!;
+        const amt = Number(tx.amount || 0);
+        if (amt > 0) t.income += amt;
+        else t.expenses += Math.abs(amt);
+      }
+      const points: ReportChartItem[] = [];
+      for (let i = -15; i <= 15; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() + i);
+        d.setHours(0, 0, 0, 0);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const t = dayTotals.get(key) ?? { income: 0, expenses: 0 };
+        points.push({
+          name: d.toLocaleDateString("default", { day: "2-digit", month: "short" }),
+          Income: t.income,
+          Expenses: t.expenses,
+        });
+      }
+      return points;
+    }
+
+    if (filterRange === "week") {
+      const weekTotals = new Map<string, { income: number; expenses: number }>();
+      for (const tx of txs) {
+        const key = getTxDateKey(tx.date, now);
+        const txDate = parseDateKey(key);
+        if (!txDate || txDate.getTime() > now.getTime()) continue;
+        const weekStart = new Date(txDate);
+        weekStart.setDate(txDate.getDate() - txDate.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        const weekKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}-${String(weekStart.getDate()).padStart(2, "0")}`;
+        if (!weekTotals.has(weekKey)) weekTotals.set(weekKey, { income: 0, expenses: 0 });
+        const t = weekTotals.get(weekKey)!;
+        const amt = Number(tx.amount || 0);
+        if (amt > 0) t.income += amt;
+        else t.expenses += Math.abs(amt);
+      }
+      const points: ReportChartItem[] = [];
+      for (let i = -6; i <= 5; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - d.getDay() + i * 7);
+        d.setHours(0, 0, 0, 0);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const weekEnd = new Date(d);
+        weekEnd.setDate(d.getDate() + 6);
+        const t = weekTotals.get(key) ?? { income: 0, expenses: 0 };
+        points.push({
+          name: `${d.toLocaleDateString("default", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString("default", { month: "short", day: "numeric" })}`,
+          Income: t.income,
+          Expenses: t.expenses,
+        });
+      }
+      return points;
+    }
+
+    const monthTotals = new Map<string, { income: number; expenses: number }>();
+    for (const tx of txs) {
+      const key = getTxDateKey(tx.date, now);
+      const monthKey = key.slice(0, 7);
+      const txDate = parseDateKey(key);
+      if (txDate && txDate.getTime() > now.getTime()) continue;
+      if (!monthTotals.has(monthKey)) monthTotals.set(monthKey, { income: 0, expenses: 0 });
+      const t = monthTotals.get(monthKey)!;
+      const amt = Number(tx.amount || 0);
+      if (amt > 0) t.income += amt;
+      else t.expenses += Math.abs(amt);
+    }
+    const points: ReportChartItem[] = [];
+    for (let i = -6; i <= 5; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const t = monthTotals.get(key) ?? { income: 0, expenses: 0 };
+      points.push({
+        name: d.toLocaleDateString("default", { month: "short", year: d.getFullYear() !== now.getFullYear() ? "2-digit" : undefined }),
+        Income: t.income,
+        Expenses: t.expenses,
+      });
+    }
+    return points;
+  } catch (error) {
+    console.error("Error fetching report chart data:", error);
     return [];
   }
 }
@@ -233,21 +385,32 @@ interface CreateTransactionData {
   category_id: number;
   amount: number;
   description: string;
-  date?: Date;
+  date?: Date | string;
   is_essential?: boolean;
+}
+
+function toValidDate(value: Date | string | null | undefined): Date {
+  if (value == null) return new Date();
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? new Date() : value;
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? new Date() : d;
+  }
+  return new Date();
 }
 
 export async function createTransaction(data: CreateTransactionData) {
   try {
+    const dateValue = toValidDate(data.date);
     await db.insert(transactions).values({
       workspace_id: data.workspace_id,
       category_id: data.category_id,
       amount: data.amount.toString(),
       description: data.description,
-      date: data.date || new Date(),
+      date: dateValue,
       is_essential: data.is_essential ?? true,
     });
-    
+
     revalidatePath('/');
     return { success: true };
   } catch (error) {

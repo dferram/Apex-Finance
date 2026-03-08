@@ -20,31 +20,34 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
   const [description, setDescription] = useState("");
   const [type, setType] = useState("expense");
   const [categoryId, setCategoryId] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !description || !categoryId || !activeWorkspace) return;
-    
+
     setLoading(true);
 
     const rawAmount = Number(amount);
     const convertedAmount = currency === "USD" ? rawAmount * 17.31 : rawAmount;
-    const txAmount = type === 'expense' ? -Math.abs(convertedAmount) : Math.abs(convertedAmount);
+    const txAmount = type === "expense" ? -Math.abs(convertedAmount) : Math.abs(convertedAmount);
+
+    const txDate = new Date(date + "T12:00:00");
 
     const newTxData = {
       workspace_id: activeWorkspace.id,
       category_id: Number(categoryId),
       amount: txAmount,
       description,
-      date: new Date(),
-      is_essential: type === 'expense'
+      date: txDate.toISOString(),
+      is_essential: type === "expense",
     };
 
     addOptimisticTransaction({
       ...newTxData,
-      id: Math.random() * -1000, 
-      date: new Date(),
-      category: categoriesHierarchical.find(c => c.id === Number(categoryId)) || null
+      id: Math.random() * -1000,
+      date: txDate,
+      category: categoriesHierarchical.find((c) => c.id === Number(categoryId)) || null,
     });
 
     setOpen(false);
@@ -59,6 +62,7 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
       setAmount("");
       setDescription("");
       setCategoryId("");
+      setDate(new Date().toISOString().slice(0, 10));
     }
   };
 
@@ -134,11 +138,22 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Input 
-              id="description" 
-              placeholder="e.g. Grocery shopping" 
+            <Input
+              id="description"
+              placeholder="e.g. Grocery shopping"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="date">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
               required
             />
           </div>
