@@ -48,39 +48,48 @@ export default function ReportsPage() {
     return () => { cancelled = true; };
   }, [activeWorkspace?.id, isInitializing]);
 
-  // Calculate aggregated data based on filter
+  // Calculate aggregated data based on filter (scoped by period: last 31 days / 12 weeks / 12 months)
   const chartData = useMemo<ChartDataItem[]>(() => {
     if (!activeWorkspace) return [];
-    const data: Record<string, { income: number; expenses: number; name: string; timestamp: number }> = {};
     const now = new Date();
-    
+    const rangeStart = new Date();
+    if (filterRange === 'day') {
+      rangeStart.setDate(now.getDate() - 31);
+    } else if (filterRange === 'week') {
+      rangeStart.setDate(now.getDate() - 12 * 7);
+    } else {
+      rangeStart.setMonth(now.getMonth() - 12);
+    }
+    rangeStart.setHours(0, 0, 0, 0);
+
+    const data: Record<string, { income: number; expenses: number; name: string; timestamp: number }> = {};
+
     transactions.forEach(tx => {
+      const txDate = tx.date ? new Date(tx.date) : new Date(now.getFullYear(), now.getMonth(), 1);
+      if (!txDate || txDate.getTime() > now.getTime()) return;
+      if (txDate.getTime() < rangeStart.getTime()) return;
+
       let key = "";
       let name = "";
-      // Include transactions without date in current period so they always show in the report
-      const txDate = tx.date ? new Date(tx.date) : new Date(now.getFullYear(), now.getMonth(), 1);
-      if (!txDate) return;
-
-      // Skip future dates only
-      if (txDate.getTime() > now.getTime()) return;
-
       if (filterRange === 'day') {
         key = txDate.toISOString().split('T')[0];
         name = txDate.toLocaleDateString('default', { day: '2-digit', month: 'short' });
       } else if (filterRange === 'week') {
         const weekStart = new Date(txDate);
         weekStart.setDate(txDate.getDate() - txDate.getDay());
+        weekStart.setHours(0, 0, 0, 0);
         key = weekStart.toISOString().split('T')[0];
-        name = `W${Math.ceil(txDate.getDate() / 7)} ${txDate.toLocaleString('default', { month: 'short' })}`;
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        name = `${weekStart.toLocaleDateString('default', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('default', { month: 'short', day: 'numeric' })}`;
       } else {
         key = `${txDate.getFullYear()}-${txDate.getMonth()}`;
         name = txDate.toLocaleString('default', { month: 'short', year: txDate.getFullYear() !== now.getFullYear() ? '2-digit' : undefined });
       }
-      
+
       if (!data[key]) {
         data[key] = { income: 0, expenses: 0, name, timestamp: txDate.getTime() };
       }
-      
       if (tx.amount > 0) {
         data[key].income += tx.amount;
       } else {
@@ -151,19 +160,52 @@ export default function ReportsPage() {
   const exportToPDF = () => {
     if (!activeWorkspace) return;
     const doc = new jsPDF();
-    
-    // Add header
+
+    // Logo: draw hexagon on canvas and add to PDF (workspace color)
+    const logoSize = 14;
+    const logoX = 14;
+    const logoY = 10;
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      const cx = 32;
+      const cy = 32;
+      const r = 28;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const x = cx + r * Math.cos(a);
+        const y = cy + r * Math.sin(a);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = activeWorkspace.is_professional ? "#3b82f6" : "#10b981";
+      ctx.fill();
+      ctx.strokeStyle = activeWorkspace.is_professional ? "#2563eb" : "#059669";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+    const logoDataUrl = canvas.toDataURL("image/png");
+    doc.addImage(logoDataUrl, "PNG", logoX, logoY, logoSize, logoSize);
+
+    // Title next to logo
+    const titleX = logoX + logoSize + 8;
+    const titleY = logoY + logoSize / 2 + 2;
     doc.setFontSize(20);
     doc.setTextColor(40);
-    doc.text("Apex Finance - Intelligence Report", 14, 22);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text(`Workspace: ${activeWorkspace.name} (${activeWorkspace.is_professional ? "xCore" : "Personal"})`, 14, 30);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 35);
-    doc.text(`View: ${filterRange.toUpperCase()}`, 14, 40);
+    doc.text("Apex Finance - Intelligence Report", titleX, titleY);
 
-    // Prepare table data
+    // Metadata below (aligned with title)
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Workspace: ${activeWorkspace.name} (${activeWorkspace.is_professional ? "xCore" : "Personal"})`, 14, titleY + 12);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, titleY + 17);
+    doc.text(`View: ${filterRange.toUpperCase()} — ${filterRange === "day" ? "Last 31 days" : filterRange === "week" ? "Last 12 weeks" : "Last 12 months"}`, 14, titleY + 22);
+
+    // Table
     const tableData = chartData.map(d => [
       d.name,
       `$${d.Income.toLocaleString()}`,
@@ -171,15 +213,16 @@ export default function ReportsPage() {
       `$${(d.Income - d.Expenses).toLocaleString()}`
     ]);
 
+    const startY = titleY + 32;
     autoTable(doc, {
-      startY: 50,
-      head: [['Period', 'Income', 'Expenses', 'Net']],
+      startY,
+      head: [["Period", "Income", "Expenses", "Net"]],
       body: tableData,
-      theme: 'grid',
+      theme: "grid",
       headStyles: { fillColor: activeWorkspace.is_professional ? [59, 130, 246] : [16, 185, 129] },
     });
 
-    doc.save(`Apex_Finance_Report_${filterRange}_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`Apex_Finance_Report_${filterRange}_${new Date().toISOString().split("T")[0]}.pdf`);
   };
 
   if (!activeWorkspace) {

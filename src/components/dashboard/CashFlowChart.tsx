@@ -3,26 +3,53 @@
 import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { useMemo, useEffect, useState } from "react";
-import { getCashFlowPulseData } from "@/app/actions";
+import { useMemo } from "react";
+import { format } from "date-fns";
+
+/** Normalize to local YYYY-MM-DD so date-only strings and timestamps bucket correctly. */
+function toLocalDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export function CashFlowChart() {
-  const { activeWorkspace } = useApex();
-  const [chartData, setChartData] = useState<{ dateLabel: string; Income: number; Expenses: number; Accumulated: number }[]>([]);
+  const { transactions, activeWorkspace } = useApex();
 
-  useEffect(() => {
-    if (!activeWorkspace?.id) return;
-    getCashFlowPulseData(activeWorkspace.id).then((data) => {
-      setChartData(
-        data.map((d) => ({
-          dateLabel: d.dateLabel,
-          Income: d.Income,
-          Expenses: d.Expenses,
-          Accumulated: d.Accumulated,
-        }))
-      );
+  const chartData = useMemo(() => {
+    const today = new Date();
+    const points: { dateLabel: string; dateKey: string; Income: number; Expenses: number; Accumulated: number }[] = [];
+
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateKey = toLocalDateKey(d);
+
+      const dayTxs = transactions.filter((t) => {
+        if (!t.date) return false;
+        const tKey = toLocalDateKey(new Date(t.date));
+        return tKey === dateKey;
+      });
+
+      const income = dayTxs.filter((t) => t.amount > 0).reduce((acc, curr) => acc + curr.amount, 0);
+      const expenses = Math.abs(dayTxs.filter((t) => t.amount < 0).reduce((acc, curr) => acc + curr.amount, 0));
+
+      points.push({
+        dateLabel: format(d, "MMM dd"),
+        dateKey,
+        Income: income,
+        Expenses: expenses,
+        Accumulated: 0,
+      });
+    }
+
+    let accumulated = 0;
+    return points.map((p) => {
+      accumulated += p.Income - p.Expenses;
+      return { ...p, Accumulated: accumulated };
     });
-  }, [activeWorkspace?.id]);
+  }, [transactions]);
 
   const isProf = activeWorkspace?.is_professional ?? false;
   const accentColor = isProf ? "#3b82f6" : "#10b981";
