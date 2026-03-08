@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { workspaces, transactions, categories, financial_goals, partners, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
-import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
+import { eq, desc, sum, sql, and, gte, lte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 export interface CategoryNode extends Category {
@@ -122,6 +122,108 @@ export async function getTransactions(workspaceId: number, limit?: number) {
     })) as TransactionWithCategory[];
   } catch (error) {
     console.error('Error fetching transactions:', error);
+    return [];
+  }
+}
+
+/** Transactions for a given date range (e.g. one day). Use for Ledger pagination by day. */
+export async function getTransactionsByDateRange(
+  workspaceId: number,
+  startDate: Date,
+  endDate: Date
+): Promise<TransactionWithCategory[]> {
+  try {
+    const data = await db
+      .select({
+        id: transactions.id,
+        workspace_id: transactions.workspace_id,
+        category_id: transactions.category_id,
+        amount: transactions.amount,
+        description: transactions.description,
+        date: transactions.date,
+        is_essential: transactions.is_essential,
+        category: categories,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.category_id, categories.id))
+      .where(
+        and(
+          eq(transactions.workspace_id, workspaceId),
+          gte(transactions.date, startDate),
+          lte(transactions.date, endDate)
+        )
+      )
+      .orderBy(desc(transactions.date), desc(transactions.id));
+
+    return data.map((t) => ({
+      ...t,
+      amount: Number(t.amount || 0),
+    })) as TransactionWithCategory[];
+  } catch (error) {
+    console.error('Error fetching transactions by date range:', error);
+    return [];
+  }
+}
+
+/** Daily income/expense totals for the last 30 days. Used by Cash Flow Pulse so it always has data from DB. */
+export async function getCashFlowPulseData(workspaceId: number): Promise<
+  { dateKey: string; dateLabel: string; Income: number; Expenses: number; Balance: number; Accumulated: number }[]
+> {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    const txs = await db
+      .select({ date: transactions.date, amount: transactions.amount })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.workspace_id, workspaceId),
+          gte(transactions.date, thirtyDaysAgo)
+        )
+      );
+
+    const dayMap = new Map<string, { Income: number; Expenses: number }>();
+    for (const t of txs) {
+      if (!t.date) continue;
+      const d = t.date instanceof Date ? t.date : new Date(t.date);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${y}-${m}-${day}`;
+      const val = Number(t.amount || 0);
+      const current = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
+      if (val > 0) current.Income += val;
+      else current.Expenses += Math.abs(val);
+      dayMap.set(dateKey, current);
+    }
+
+    const result: { dateKey: string; dateLabel: string; Income: number; Expenses: number; Balance: number; Accumulated: number }[] = [];
+    const today = new Date();
+    let accumulated = 0;
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${y}-${m}-${day}`;
+      const { Income, Expenses } = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
+      const Balance = Income - Expenses;
+      accumulated += Balance;
+      result.push({
+        dateKey,
+        dateLabel: d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+        Income,
+        Expenses,
+        Balance,
+        Accumulated: accumulated,
+      });
+    }
+    return result;
+  } catch (error) {
+    console.error('Error fetching cash flow pulse data:', error);
     return [];
   }
 }
