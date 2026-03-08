@@ -6,43 +6,52 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useMemo } from "react";
 import { format } from "date-fns";
 
+/** Normalize to local YYYY-MM-DD so date-only strings and timestamps bucket correctly. */
+function toLocalDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function CashFlowChart() {
   const { transactions, activeWorkspace } = useApex();
 
   const data = useMemo(() => {
-    // Generate last 30 days data points
-    const points = [];
+    // Generate last 30 days data points (local dates)
+    const points: { date: string; dateKey: string; Income: number; Expenses: number; Balance: number }[] = [];
     const today = new Date();
-    
+
     for (let i = 29; i >= 0; i--) {
-      const d = new Date();
+      const d = new Date(today);
       d.setDate(today.getDate() - i);
-      
-      // Get transactions for this day
-      const dayTxs = transactions.filter(t => {
+      const dateKey = toLocalDateKey(d);
+
+      // Bucket transactions by local date (avoids timezone shift with date-only strings)
+      const dayTxs = transactions.filter((t) => {
         if (!t.date) return false;
-        const dDate = new Date(t.date);
-        return dDate.getDate() === d.getDate() && 
-               dDate.getMonth() === d.getMonth() && 
-               dDate.getFullYear() === d.getFullYear();
+        const tKey = toLocalDateKey(new Date(t.date));
+        return tKey === dateKey;
       });
-      
-      const income = dayTxs.filter(t => t.amount > 0).reduce((acc, curr) => acc + curr.amount, 0);
-      const expenses = Math.abs(dayTxs.filter(t => t.amount < 0).reduce((acc, curr) => acc + curr.amount, 0));
-      
+
+      const income = dayTxs.filter((t) => t.amount > 0).reduce((acc, curr) => acc + curr.amount, 0);
+      const expenses = Math.abs(dayTxs.filter((t) => t.amount < 0).reduce((acc, curr) => acc + curr.amount, 0));
+
       points.push({
-        date: format(d, 'MMM dd'),
+        date: format(d, "MMM dd"),
+        dateKey,
         Income: income,
         Expenses: expenses,
-        Balance: income - expenses
+        Balance: income - expenses,
       });
     }
-    
+
     // Accumulate balance
     let currentBalance = 0;
-    return points.map(p => {
+    return points.map((p) => {
       currentBalance += p.Balance;
-      return { ...p, Accumulated: currentBalance };
+      const { dateKey: _dk, ...rest } = p;
+      return { ...rest, Accumulated: currentBalance };
     });
   }, [transactions]);
 
@@ -58,7 +67,7 @@ export function CashFlowChart() {
       </CardHeader>
       <CardContent className="p-0">
         <div className="h-[300px] w-full flex flex-col items-center justify-center px-6">
-          {data.length > 0 && data.some(d => d.Income > 0 || d.Expenses > 0) ? (
+          {data.length > 0 && data.some((d) => d.Income > 0 || d.Expenses > 0) ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
