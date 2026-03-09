@@ -19,7 +19,7 @@ export function KPICards() {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const weeklySpend = transactions
-      .filter(t => t.amount < 0 && t.date != null && t.date >= sevenDaysAgo)
+      .filter(t => t.amount < 0 && t.date != null && new Date(t.date) >= sevenDaysAgo)
       .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
 
     return {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useApex } from "@/context/ApexContext";
-import { format, startOfDay, endOfDay, addDays, subDays } from "date-fns";
+import { format, addDays, subDays } from "date-fns";
 import {
   Table,
   TableBody,
@@ -31,9 +31,8 @@ export function RecentTransactions() {
       return;
     }
     setLoading(true);
-    const start = startOfDay(selectedDate);
-    const end = endOfDay(selectedDate);
-    getTransactionsByDateRange(activeWorkspace.id, start, end)
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    getTransactionsByDateRange(activeWorkspace.id, dateStr)
       .then(setDayTransactions)
       .finally(() => setLoading(false));
   }, [activeWorkspace?.id, selectedDate]);
@@ -119,8 +118,9 @@ export function RecentTransactions() {
             <TableBody>
               {dayTransactions.map((tx) => {
                 const isIncome = tx.amount > 0;
-                const timeStr = tx.date
-                  ? format(new Date(tx.date), "HH:mm")
+                const dateForTime = tx.date ?? tx.created_at;
+                const timeStr = dateForTime
+                  ? format(new Date(dateForTime), "HH:mm")
                   : "—";
                 const amountClass = isIncome
                   ? isProf

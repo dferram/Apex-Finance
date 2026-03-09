@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, bigserial, integer, numeric, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, date, boolean, bigserial, integer, numeric, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { relations, type InferSelectModel } from 'drizzle-orm';
 
 export type User = InferSelectModel<typeof users>;
@@ -8,8 +8,10 @@ export type Transaction = InferSelectModel<typeof transactions>;
 export type Goal = InferSelectModel<typeof financial_goals>;
 export type Partner = InferSelectModel<typeof partners>;
 
-export interface TransactionWithCategory extends Omit<Transaction, 'amount'> {
+export interface TransactionWithCategory extends Omit<Transaction, 'amount' | 'date' | 'created_at'> {
   amount: number;
+  date: string | null;
+  created_at?: string;
   category: Category | null;
 }
 
@@ -50,7 +52,8 @@ export const transactions = pgTable('transactions', {
   amount: numeric('amount').notNull(),
   description: text('description').notNull(),
   is_essential: boolean('is_essential').default(true),
-  date: timestamp('date'),
+  date: date('date', { mode: 'string' }),
+  created_at: timestamp('created_at', { withTimezone: true }),
 });
 
 export const financial_goals = pgTable('financial_goals', {

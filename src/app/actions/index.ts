@@ -2,9 +2,8 @@
 
 import { db } from '@/lib/db';
 import { workspaces, transactions, categories, financial_goals, partners, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
-import { eq, desc, sum, sql, and, gte, lte } from 'drizzle-orm';
+import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { toCalendarDateKey } from '@/lib/dateUtils';
 
 export interface CategoryNode extends Category {
   full_path: string;
@@ -120,6 +119,7 @@ export async function getTransactions(workspaceId: number, limit?: number) {
     return data.map(t => ({
       ...t,
       amount: Number(t.amount || 0),
+      date: t.date,
     })) as TransactionWithCategory[];
   } catch (error) {
     console.error('Error fetching transactions:', error);
@@ -127,12 +127,14 @@ export async function getTransactions(workspaceId: number, limit?: number) {
   }
 }
 
-/** Transactions for a given date range (e.g. one day). Use for Ledger pagination by day. */
+/** Transactions for a given calendar day (YYYY-MM-DD). Use for Ledger pagination by day. Compares date part only to avoid timezone issues. */
 export async function getTransactionsByDateRange(
   workspaceId: number,
-  startDate: Date,
-  endDate: Date
+  dateStr: string
 ): Promise<TransactionWithCategory[]> {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return [];
+  }
   try {
     const data = await db
       .select({
@@ -142,6 +144,7 @@ export async function getTransactionsByDateRange(
         amount: transactions.amount,
         description: transactions.description,
         date: transactions.date,
+        created_at: transactions.created_at,
         is_essential: transactions.is_essential,
         category: categories,
       })
@@ -150,8 +153,7 @@ export async function getTransactionsByDateRange(
       .where(
         and(
           eq(transactions.workspace_id, workspaceId),
-          gte(transactions.date, startDate),
-          lte(transactions.date, endDate)
+          sql`(${transactions.date})::date = (${dateStr}::date)`
         )
       )
       .orderBy(desc(transactions.date), desc(transactions.id));
@@ -159,6 +161,8 @@ export async function getTransactionsByDateRange(
     return data.map((t) => ({
       ...t,
       amount: Number(t.amount || 0),
+      date: t.date,
+      created_at: t.created_at ? new Date(t.created_at).toISOString() : undefined,
     })) as TransactionWithCategory[];
   } catch (error) {
     console.error('Error fetching transactions by date range:', error);
@@ -201,7 +205,7 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
       const d = new Date(now);
       d.setDate(d.getDate() + i);
       d.setHours(0, 0, 0, 0);
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const dateKey = d.toISOString().slice(0, 10);
       const { Income, Expenses } = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
       const Balance = Income - Expenses;
       accumulated += Balance;
@@ -222,25 +226,49 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
   }
 }
 
-/** Date key for a tx; if date is null (DB has no date), use today so the tx still appears in charts. */
+/** Date key for a tx; if date is null (DB has no date), use today (UTC) so the tx still appears in charts. */
 function getTxDateKey(date: unknown, fallbackNow: Date): string {
   const key = getDateKey(date);
   if (key) return key;
-  return toCalendarDateKey(fallbackNow) ?? `${fallbackNow.getFullYear()}-${String(fallbackNow.getMonth() + 1).padStart(2, "0")}-${String(fallbackNow.getDate()).padStart(2, "0")}`;
+  try {
+    const k = fallbackNow.toISOString().slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(k) ? k : `${fallbackNow.getFullYear()}-${String(fallbackNow.getMonth() + 1).padStart(2, "0")}-${String(fallbackNow.getDate()).padStart(2, "0")}`;
+  } catch {
+    return `${fallbackNow.getFullYear()}-${String(fallbackNow.getMonth() + 1).padStart(2, "0")}-${String(fallbackNow.getDate()).padStart(2, "0")}`;
+  }
 }
 
-/** Safe date key (YYYY-MM-DD) from DB value; never throws. Handles Date, string, number, and Date-like objects from pg driver. */
+/** Safe date key (YYYY-MM-DD) from DB value; never throws. Uses UTC date part for timestamps so grouping is consistent regardless of server timezone. */
 function getDateKey(date: unknown): string | null {
   if (date == null) return null;
   if (typeof date === 'number' && !Number.isNaN(date)) {
-    const key = toCalendarDateKey(new Date(date));
-    return key && !key.includes('NaN') ? key : null;
+    try {
+      const key = new Date(date).toISOString().slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null;
+    } catch {
+      return null;
+    }
   }
-  if (typeof date === 'string' || date instanceof Date) {
-    const key = toCalendarDateKey(date);
-    return key && !key.includes('NaN') ? key : null;
+  if (typeof date === 'string') {
+    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+    try {
+      const d = new Date(date);
+      if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    } catch {
+      // ignore
+    }
+    return null;
   }
-  // Objeto tipo Date (p. ej. node-pg puede devolver objetos con toISOString)
+  if (date instanceof Date) {
+    if (Number.isNaN(date.getTime())) return null;
+    try {
+      const key = date.toISOString().slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null;
+    } catch {
+      return null;
+    }
+  }
   if (typeof date === 'object' && date !== null) {
     const o = date as { toISOString?: () => string; getTime?: () => number; valueOf?: () => number };
     let d: Date | null = null;
@@ -258,8 +286,12 @@ function getDateKey(date: unknown): string | null {
       if (typeof t === 'number' && !Number.isNaN(t)) d = new Date(t);
     }
     if (d && !Number.isNaN(d.getTime())) {
-      const key = toCalendarDateKey(d);
-      return key && !key.includes('NaN') ? key : null;
+      try {
+        const key = d.toISOString().slice(0, 10);
+        return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null;
+      } catch {
+        return null;
+      }
     }
   }
   return null;
@@ -268,7 +300,7 @@ function getDateKey(date: unknown): string | null {
 function parseDateKey(key: string): Date | null {
   const [y, m, d] = key.split("-").map(Number);
   if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return null;
-  const date = new Date(y, m - 1, d);
+  const date = new Date(Date.UTC(y, m - 1, d));
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -305,7 +337,7 @@ export async function getReportChartData(
         const d = new Date(now);
         d.setDate(d.getDate() + i);
         d.setHours(0, 0, 0, 0);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const key = d.toISOString().slice(0, 10);
         const t = dayTotals.get(key) ?? { income: 0, expenses: 0 };
         points.push({
           name: d.toLocaleDateString("default", { day: "2-digit", month: "short" }),
@@ -322,10 +354,8 @@ export async function getReportChartData(
         const key = getTxDateKey(tx.date, now);
         const txDate = parseDateKey(key);
         if (!txDate || txDate.getTime() > now.getTime()) continue;
-        const weekStart = new Date(txDate);
-        weekStart.setDate(txDate.getDate() - txDate.getDay());
-        weekStart.setHours(0, 0, 0, 0);
-        const weekKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}-${String(weekStart.getDate()).padStart(2, "0")}`;
+        const weekStart = new Date(Date.UTC(txDate.getUTCFullYear(), txDate.getUTCMonth(), txDate.getUTCDate() - txDate.getUTCDay()));
+        const weekKey = weekStart.toISOString().slice(0, 10);
         if (!weekTotals.has(weekKey)) weekTotals.set(weekKey, { income: 0, expenses: 0 });
         const t = weekTotals.get(weekKey)!;
         const amt = Number(tx.amount || 0);
@@ -337,12 +367,13 @@ export async function getReportChartData(
         const d = new Date(now);
         d.setDate(d.getDate() - d.getDay() + i * 7);
         d.setHours(0, 0, 0, 0);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        const weekEnd = new Date(d);
-        weekEnd.setDate(d.getDate() + 6);
+        const weekStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - d.getUTCDay()));
+        const key = weekStart.toISOString().slice(0, 10);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
         const t = weekTotals.get(key) ?? { income: 0, expenses: 0 };
         points.push({
-          name: `${d.toLocaleDateString("default", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString("default", { month: "short", day: "numeric" })}`,
+          name: `${weekStart.toLocaleDateString("default", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString("default", { month: "short", day: "numeric" })}`,
           Income: t.income,
           Expenses: t.expenses,
         });
@@ -364,11 +395,11 @@ export async function getReportChartData(
     }
     const points: ReportChartItem[] = [];
     for (let i = -6; i <= 5; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
+      const key = d.toISOString().slice(0, 7);
       const t = monthTotals.get(key) ?? { income: 0, expenses: 0 };
       points.push({
-        name: d.toLocaleDateString("default", { month: "short", year: d.getFullYear() !== now.getFullYear() ? "2-digit" : undefined }),
+        name: d.toLocaleDateString("default", { month: "short", year: d.getUTCFullYear() !== now.getUTCFullYear() ? "2-digit" : undefined }),
         Income: t.income,
         Expenses: t.expenses,
       });
@@ -389,19 +420,24 @@ interface CreateTransactionData {
   is_essential?: boolean;
 }
 
-function toValidDate(value: Date | string | null | undefined): Date {
-  if (value == null) return new Date();
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? new Date() : value;
+function toValidDateString(value: Date | string | null | undefined): string {
+  if (value == null) {
+    const now = new Date();
+    return now.toISOString().slice(0, 10);
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? new Date().toISOString().slice(0, 10) : value.toISOString().slice(0, 10);
+  }
   if (typeof value === "string") {
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? new Date() : d;
+    return Number.isNaN(d.getTime()) ? new Date().toISOString().slice(0, 10) : d.toISOString().slice(0, 10);
   }
-  return new Date();
+  return new Date().toISOString().slice(0, 10);
 }
 
 export async function createTransaction(data: CreateTransactionData) {
   try {
-    const dateValue = toValidDate(data.date);
+    const dateValue = toValidDateString(data.date);
     await db.insert(transactions).values({
       workspace_id: data.workspace_id,
       category_id: data.category_id,
@@ -441,6 +477,7 @@ export async function getApexStats(workspaceId: number) {
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
 
     const weeklyExpensesResult = await db
       .select({
@@ -451,7 +488,7 @@ export async function getApexStats(workspaceId: number) {
         and(
           eq(transactions.workspace_id, workspaceId),
           sql`CAST(${transactions.amount} AS NUMERIC) < 0`,
-          gte(transactions.date, sevenDaysAgo)
+          gte(transactions.date, sevenDaysAgoStr)
         )
       );
 
@@ -604,7 +641,7 @@ export async function moveCategoryParent(
 
 export async function updateTransaction(
   id: number,
-  data: { amount?: number; description?: string; category_id?: number; date?: Date; is_essential?: boolean }
+  data: { amount?: number; description?: string; category_id?: number; date?: Date | string; is_essential?: boolean }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await db
@@ -613,7 +650,7 @@ export async function updateTransaction(
         ...(data.amount !== undefined && { amount: data.amount.toString() }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.category_id !== undefined && { category_id: data.category_id }),
-        ...(data.date !== undefined && { date: data.date }),
+        ...(data.date !== undefined && { date: toValidDateString(data.date) }),
         ...(data.is_essential !== undefined && { is_essential: data.is_essential }),
       })
       .where(eq(transactions.id, id));

@@ -26,7 +26,11 @@ export default function TransactionsPage() {
   const filteredTransactions = useMemo(() => {
     const filtered = transactions.filter(t => 
       t.description.toLowerCase().includes(searchTerm.toLowerCase())
-    ).sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
+    ).sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      return dateB - dateA;
+    });
     return filtered.slice(0, displayLimit);
   }, [transactions, searchTerm, displayLimit]);
 
@@ -102,7 +106,7 @@ export default function TransactionsPage() {
                   return (
                     <TableRow key={tx.id} className="border-border/50 hover:bg-muted/30 transition-colors">
                       <TableCell className="font-mono text-sm text-muted-foreground pl-6">
-                        {tx.date ? format(tx.date, "MMM dd, yyyy") : "—"}
+                        {tx.date ? format(new Date(tx.date), "MMM dd, yyyy") : "—"}
                       </TableCell>
                       <TableCell className="font-medium text-foreground/90">
                         {tx.description}
