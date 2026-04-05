@@ -119,7 +119,7 @@ export async function getTransactions(workspaceId: number, limit?: number) {
     return data.map(t => ({
       ...t,
       amount: Number(t.amount || 0),
-      date: t.date,
+      date: t.date != null ? (typeof t.date === 'string' ? t.date : new Date(t.date).toISOString()) : null,
     })) as TransactionWithCategory[];
   } catch (error) {
     console.error('Error fetching transactions:', error);
@@ -158,12 +158,16 @@ export async function getTransactionsByDateRange(
       )
       .orderBy(desc(transactions.date), desc(transactions.id));
 
-    return data.map((t) => ({
-      ...t,
-      amount: Number(t.amount || 0),
-      date: t.date,
-      created_at: t.created_at ? new Date(t.created_at).toISOString() : undefined,
-    })) as TransactionWithCategory[];
+    return data.map((t) => {
+      const dateVal = t.date;
+      const createdVal = t.created_at;
+      return {
+        ...t,
+        amount: Number(t.amount || 0),
+        date: dateVal != null ? (typeof dateVal === 'string' ? dateVal : new Date(dateVal).toISOString()) : null,
+        created_at: createdVal != null ? (typeof createdVal === 'string' ? createdVal : new Date(createdVal).toISOString()) : undefined,
+      };
+    }) as TransactionWithCategory[];
   } catch (error) {
     console.error('Error fetching transactions by date range:', error);
     return [];
@@ -420,24 +424,19 @@ interface CreateTransactionData {
   is_essential?: boolean;
 }
 
-function toValidDateString(value: Date | string | null | undefined): string {
-  if (value == null) {
-    const now = new Date();
-    return now.toISOString().slice(0, 10);
-  }
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? new Date().toISOString().slice(0, 10) : value.toISOString().slice(0, 10);
-  }
+function toValidDate(value: Date | string | null | undefined): Date {
+  if (value == null) return new Date();
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? new Date() : value;
   if (typeof value === "string") {
     const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? new Date().toISOString().slice(0, 10) : d.toISOString().slice(0, 10);
+    return Number.isNaN(d.getTime()) ? new Date() : d;
   }
-  return new Date().toISOString().slice(0, 10);
+  return new Date();
 }
 
 export async function createTransaction(data: CreateTransactionData) {
   try {
-    const dateValue = toValidDateString(data.date);
+    const dateValue = toValidDate(data.date);
     await db.insert(transactions).values({
       workspace_id: data.workspace_id,
       category_id: data.category_id,
@@ -477,7 +476,6 @@ export async function getApexStats(workspaceId: number) {
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
 
     const weeklyExpensesResult = await db
       .select({
@@ -488,7 +486,7 @@ export async function getApexStats(workspaceId: number) {
         and(
           eq(transactions.workspace_id, workspaceId),
           sql`CAST(${transactions.amount} AS NUMERIC) < 0`,
-          gte(transactions.date, sevenDaysAgoStr)
+          gte(transactions.date, sevenDaysAgo)
         )
       );
 
@@ -641,7 +639,7 @@ export async function moveCategoryParent(
 
 export async function updateTransaction(
   id: number,
-  data: { amount?: number; description?: string; category_id?: number; date?: Date | string; is_essential?: boolean }
+  data: { amount?: number; description?: string; category_id?: number; date?: Date; is_essential?: boolean }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await db
@@ -650,7 +648,7 @@ export async function updateTransaction(
         ...(data.amount !== undefined && { amount: data.amount.toString() }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.category_id !== undefined && { category_id: data.category_id }),
-        ...(data.date !== undefined && { date: toValidDateString(data.date) }),
+        ...(data.date !== undefined && { date: data.date }),
         ...(data.is_essential !== undefined && { is_essential: data.is_essential }),
       })
       .where(eq(transactions.id, id));
