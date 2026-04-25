@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { workspaces, transactions, categories, financial_goals, partners, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
 import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { transactionSchema, goalSchema } from '@/lib/validations';
 
 export interface CategoryNode extends Category {
   full_path: string;
@@ -437,13 +438,27 @@ function toValidDate(value: Date | string | null | undefined): Date {
 export async function createTransaction(data: CreateTransactionData) {
   try {
     const dateValue = toValidDate(data.date);
-    await db.insert(transactions).values({
+    // Validate input with Zod schema
+    const validation = transactionSchema.safeParse({
       workspace_id: data.workspace_id,
       category_id: data.category_id,
-      amount: data.amount.toString(),
+      amount: data.amount,
       description: data.description,
-      date: dateValue,
       is_essential: data.is_essential ?? true,
+      date: dateValue,
+    });
+    if (!validation.success) {
+      const firstError = validation.error.issues[0]?.message ?? 'Invalid input';
+      return { success: false, error: firstError };
+    }
+
+    await db.insert(transactions).values({
+      workspace_id: validation.data.workspace_id,
+      category_id: validation.data.category_id,
+      amount: validation.data.amount.toString(),
+      description: validation.data.description,
+      date: validation.data.date,
+      is_essential: validation.data.is_essential,
     });
 
     revalidatePath('/');
@@ -528,12 +543,25 @@ export async function createCategory(data: { workspace_id: number; name: string;
 
 export async function createFinancialGoal(data: { user_id: number; name: string; target_amount: number; deadline?: Date }) {
   try {
+    // Validate input with Zod schema (workspace_id not needed for goals, use user_id as placeholder)
+    const validation = goalSchema.safeParse({
+      workspace_id: data.user_id, // goalSchema requires workspace_id, reuse user_id for validation
+      name: data.name,
+      target_amount: data.target_amount,
+      current_amount: 0,
+      deadline: data.deadline,
+    });
+    if (!validation.success) {
+      const firstError = validation.error.issues[0]?.message ?? 'Invalid input';
+      return { success: false, error: firstError };
+    }
+
     await db.insert(financial_goals).values({
       user_id: data.user_id,
-      name: data.name,
-      target_amount: data.target_amount.toString(),
+      name: validation.data.name,
+      target_amount: validation.data.target_amount.toString(),
       current_amount: '0',
-      deadline: data.deadline,
+      deadline: validation.data.deadline,
     });
     revalidatePath('/goals');
     revalidatePath('/');

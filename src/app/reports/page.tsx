@@ -29,7 +29,8 @@ export default function ReportsPage() {
   const [reportReady, setReportReady] = useState(false);
   const [chartData, setChartData] = useState<ReportChartItem[]>([]);
 
-  // Load and refresh report data when opening Reports; fetch chart data from server so it always has data
+  // Load and refresh report data when opening Reports; fetch chart data from server so it always has data.
+  // Single effect handles both initial mount and filterRange changes (removed duplicate useEffect).
   useEffect(() => {
     if (!activeWorkspace || isInitializing) {
       setReportReady(false);
@@ -53,12 +54,6 @@ export default function ReportsPage() {
       });
     return () => { cancelled = true; };
   }, [activeWorkspace?.id, isInitializing, filterRange]);
-
-  // Re-fetch chart when only filterRange changes (already have workspace)
-  useEffect(() => {
-    if (!activeWorkspace?.id || filterRange === "budget") return;
-    getReportChartData(activeWorkspace.id, filterRange).then(setChartData);
-  }, [filterRange, activeWorkspace?.id]);
 
   // Insights Data
   const essentialRatio = useMemo(() => {
