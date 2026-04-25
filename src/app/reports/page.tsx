@@ -23,7 +23,7 @@ interface TreeItem extends CategoryNode {
 }
 
 export default function ReportsPage() {
-  const { transactions, activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals, isInitializing, refreshData } = useApex();
+  const { transactions, activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals, isInitializing, refreshData, stats } = useApex();
 
   const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'budget'>('month');
   const [reportReady, setReportReady] = useState(false);
@@ -80,6 +80,22 @@ export default function ReportsPage() {
   const totalProfit = profitMetrics 
     ? profitMetrics.annualRevenue - profitMetrics.annualExpenses 
     : 0;
+
+  const projectionMessage = useMemo(() => {
+    if (!activeWorkspace || isInitializing) return "Calculating projections...";
+    
+    if (activeWorkspace.is_professional) {
+      if (!profitMetrics) return "Not enough data to calculate runway.";
+      const burnRate = profitMetrics.monthlyExpenses - profitMetrics.monthlyRevenue;
+      if (burnRate <= 0) return "Runway is stable. Operations are profitable.";
+      const runwayMonths = Math.max(0, stats.totalBalance / burnRate);
+      return `Current runway is approximately ${runwayMonths.toFixed(1)} months at current burn rate.`;
+    } else {
+      const netMonthly = stats.totalIncome - stats.totalExpense;
+      if (netMonthly <= 0) return "Warning: Monthly expenses currently exceed income.";
+      return `At current rate, you are saving $${netMonthly.toLocaleString('en-US', { minimumFractionDigits: 2 })} monthly.`;
+    }
+  }, [activeWorkspace, isInitializing, profitMetrics, stats]);
 
   const treeData = useMemo(() => {
     const map: Record<number, TreeItem> = {};
@@ -383,9 +399,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="relative z-10">
                  <div className="text-xl font-bold leading-tight">
-                   {isProf 
-                     ? "Runway extended by 12 days this month." 
-                     : "Porsche goal timeline accelerated by 2 weeks."}
+                   {projectionMessage}
                  </div>
                  <Button variant="secondary" size="sm" className="mt-6 w-full font-semibold border-0 text-workspace hover:bg-white/90">
                    Generate Full Report
