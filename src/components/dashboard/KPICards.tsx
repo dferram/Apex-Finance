@@ -3,33 +3,19 @@
 import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet, TrendingDown, TrendingUp, Activity } from "lucide-react";
-import { useMemo } from "react";
 
 export function KPICards() {
-  const { activeWorkspace, transactions, apexScore } = useApex();
+  const { activeWorkspace, stats, apexScore } = useApex();
 
-  const metrics = useMemo(() => {
-    const isProf = activeWorkspace?.is_professional;
-    const income = transactions.filter(t => t.amount > 0).reduce((acc, curr) => acc + curr.amount, 0);
-    const expenses = transactions.filter(t => t.amount < 0).reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
-    
-    const balance = income - expenses;
-    
-    // Calculate last 7 days spend
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const weeklySpend = transactions
-      .filter(t => t.amount < 0 && t.date != null && new Date(t.date) >= sevenDaysAgo)
-      .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
-
-    return {
-      balance,
-      weeklySpend,
-      income,
-      expenses,
-      isProf
-    };
-  }, [transactions, activeWorkspace]);
+  // Use pre-computed stats from the server (getApexStats) instead of
+  // recalculating from the full transactions array on the client.
+  const metrics = {
+    balance: stats.totalBalance,
+    weeklySpend: stats.weeklyExpense,
+    income: stats.totalIncome,
+    expenses: stats.totalExpense,
+    isProf: activeWorkspace?.is_professional,
+  };
 
   // Determine color based on score
   let scoreColor = "text-emerald-500";

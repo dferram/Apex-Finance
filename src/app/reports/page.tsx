@@ -23,13 +23,14 @@ interface TreeItem extends CategoryNode {
 }
 
 export default function ReportsPage() {
-  const { transactions, activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals, isInitializing, refreshData } = useApex();
+  const { transactions, activeWorkspace, categoriesHierarchical, categoriesHierarchicalTotals, isInitializing, refreshData, stats } = useApex();
 
   const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'budget'>('month');
   const [reportReady, setReportReady] = useState(false);
   const [chartData, setChartData] = useState<ReportChartItem[]>([]);
 
-  // Load and refresh report data when opening Reports; fetch chart data from server so it always has data
+  // Load and refresh report data when opening Reports; fetch chart data from server so it always has data.
+  // Single effect handles both initial mount and filterRange changes (removed duplicate useEffect).
   useEffect(() => {
     if (!activeWorkspace || isInitializing) {
       setReportReady(false);
@@ -53,12 +54,6 @@ export default function ReportsPage() {
       });
     return () => { cancelled = true; };
   }, [activeWorkspace?.id, isInitializing, filterRange]);
-
-  // Re-fetch chart when only filterRange changes (already have workspace)
-  useEffect(() => {
-    if (!activeWorkspace?.id || filterRange === "budget") return;
-    getReportChartData(activeWorkspace.id, filterRange).then(setChartData);
-  }, [filterRange, activeWorkspace?.id]);
 
   // Insights Data
   const essentialRatio = useMemo(() => {
@@ -85,6 +80,22 @@ export default function ReportsPage() {
   const totalProfit = profitMetrics 
     ? profitMetrics.annualRevenue - profitMetrics.annualExpenses 
     : 0;
+
+  const projectionMessage = useMemo(() => {
+    if (!activeWorkspace || isInitializing) return "Calculating projections...";
+    
+    if (activeWorkspace.is_professional) {
+      if (!profitMetrics) return "Not enough data to calculate runway.";
+      const burnRate = profitMetrics.monthlyExpenses - profitMetrics.monthlyRevenue;
+      if (burnRate <= 0) return "Runway is stable. Operations are profitable.";
+      const runwayMonths = Math.max(0, stats.totalBalance / burnRate);
+      return `Current runway is approximately ${runwayMonths.toFixed(1)} months at current burn rate.`;
+    } else {
+      const netMonthly = stats.totalIncome - stats.totalExpense;
+      if (netMonthly <= 0) return "Warning: Monthly expenses currently exceed income.";
+      return `At current rate, you are saving $${netMonthly.toLocaleString('en-US', { minimumFractionDigits: 2 })} monthly.`;
+    }
+  }, [activeWorkspace, isInitializing, profitMetrics, stats]);
 
   const treeData = useMemo(() => {
     const map: Record<number, TreeItem> = {};
@@ -322,17 +333,17 @@ export default function ReportsPage() {
                ) : (
                  <ResponsiveContainer width="100%" height="100%">
                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#262626" />
                      <XAxis 
                        dataKey="name" 
                        axisLine={false} 
                        tickLine={false} 
-                       tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                       tick={{ fontSize: 12, fill: "#a3a3a3" }} 
                      />
                      <YAxis 
                        axisLine={false} 
                        tickLine={false} 
-                       tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                       tick={{ fontSize: 12, fill: "#a3a3a3" }}
                        tickFormatter={(val) => `$${val > 1000 ? (val/1000).toFixed(0) + 'k' : val}`}
                      />
                      <Tooltip 
@@ -342,7 +353,7 @@ export default function ReportsPage() {
                          borderRadius: "8px"
                        }}
                        itemStyle={{ color: "hsl(var(--foreground))" }}
-                       cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
+                       cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                        formatter={(value: number | undefined) => value !== undefined ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
                      />
                      <Legend wrapperStyle={{ paddingTop: '20px' }} />
@@ -388,9 +399,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent className="relative z-10">
                  <div className="text-xl font-bold leading-tight">
-                   {isProf 
-                     ? "Runway extended by 12 days this month." 
-                     : "Porsche goal timeline accelerated by 2 weeks."}
+                   {projectionMessage}
                  </div>
                  <Button variant="secondary" size="sm" className="mt-6 w-full font-semibold border-0 text-workspace hover:bg-white/90">
                    Generate Full Report
