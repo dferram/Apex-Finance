@@ -2,7 +2,7 @@
 
 import { useApex } from "@/context/ApexContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useEffect, useState } from "react";
 import { getCashFlowPulseData } from "@/app/actions";
 
@@ -52,7 +52,7 @@ export function CashFlowChart() {
           ) : chartData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 5, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={accentColor} stopOpacity={0.3} />
@@ -72,10 +72,11 @@ export function CashFlowChart() {
                     minTickGap={30}
                   />
                   <YAxis
+                    width={45}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                    tickFormatter={(val) => `$${val > 1000 ? (val / 1000).toFixed(1) + "k" : val}`}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(val) => `$${val > 1000 ? (val / 1000).toFixed(0) + "k" : val}`}
                   />
                   <Tooltip
                     contentStyle={{
@@ -101,6 +102,10 @@ export function CashFlowChart() {
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorExpense)"
+                  />
+                  <Legend
+                    wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }}
+                    iconType="circle"
                   />
                 </AreaChart>
               </ResponsiveContainer>

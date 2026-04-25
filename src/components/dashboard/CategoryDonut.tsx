@@ -5,12 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useMemo } from "react";
 
+// Hardcoded colors instead of hsl(var(--chart-X)) because CSS custom
+// properties in SVG presentation attributes aren't supported in all browsers
+// (e.g. Safari < 15.4). Values match the light-mode --chart-* tokens.
 const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
+  '#e8553d', // --chart-1: hsl(12, 76%, 61%)
+  '#2a9d8f', // --chart-2: hsl(173, 58%, 39%)
+  '#263849', // --chart-3: hsl(197, 37%, 24%)
+  '#e0c060', // --chart-4: hsl(43, 74%, 66%)
+  '#e8884d', // --chart-5: hsl(27, 87%, 67%)
 ];
 
 export function CategoryDonut() {
