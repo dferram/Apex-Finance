@@ -317,17 +317,17 @@ export default function ReportsPage() {
                ) : (
                  <ResponsiveContainer width="100%" height="100%">
                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#262626" />
                      <XAxis 
                        dataKey="name" 
                        axisLine={false} 
                        tickLine={false} 
-                       tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} 
+                       tick={{ fontSize: 12, fill: "#a3a3a3" }} 
                      />
                      <YAxis 
                        axisLine={false} 
                        tickLine={false} 
-                       tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                       tick={{ fontSize: 12, fill: "#a3a3a3" }}
                        tickFormatter={(val) => `$${val > 1000 ? (val/1000).toFixed(0) + 'k' : val}`}
                      />
                      <Tooltip 
@@ -337,7 +337,7 @@ export default function ReportsPage() {
                          borderRadius: "8px"
                        }}
                        itemStyle={{ color: "hsl(var(--foreground))" }}
-                       cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
+                       cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                        formatter={(value: number | undefined) => value !== undefined ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
                      />
                      <Legend wrapperStyle={{ paddingTop: '20px' }} />
