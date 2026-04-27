@@ -120,7 +120,7 @@ export async function getTransactions(workspaceId: number, limit?: number) {
     return data.map(t => ({
       ...t,
       amount: Number(t.amount || 0),
-      date: t.date != null ? (typeof t.date === 'string' ? t.date : new Date(t.date).toISOString()) : null,
+      date: t.date != null ? (typeof t.date === 'string' ? t.date : (!Number.isNaN(new Date(t.date).getTime()) ? new Date(t.date).toISOString() : null)) : null,
     })) as TransactionWithCategory[];
   } catch (error) {
     console.error('Error fetching transactions:', error);
@@ -165,8 +165,8 @@ export async function getTransactionsByDateRange(
       return {
         ...t,
         amount: Number(t.amount || 0),
-        date: dateVal != null ? (typeof dateVal === 'string' ? dateVal : new Date(dateVal).toISOString()) : null,
-        created_at: createdVal != null ? (typeof createdVal === 'string' ? createdVal : new Date(createdVal).toISOString()) : undefined,
+        date: dateVal != null ? (typeof dateVal === 'string' ? dateVal : (!Number.isNaN(new Date(dateVal).getTime()) ? new Date(dateVal).toISOString() : null)) : null,
+        created_at: createdVal != null ? (typeof createdVal === 'string' ? createdVal : (!Number.isNaN(new Date(createdVal).getTime()) ? new Date(createdVal).toISOString() : undefined)) : undefined,
       };
     }) as TransactionWithCategory[];
   } catch (error) {
