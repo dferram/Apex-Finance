@@ -116,7 +116,7 @@ export async function getTransactions(workspaceId: number, limit?: number) {
       .where(eq(transactions.workspace_id, workspaceId))
       .orderBy(desc(transactions.date), desc(transactions.id));
     
-    const data = limit ? await baseQuery.limit(limit) : await baseQuery.limit(500); // Added default safety limit
+    const data = limit ? await baseQuery.limit(limit) : await baseQuery.limit(500);
       
     return data.map(t => ({
       ...t,
@@ -126,6 +126,74 @@ export async function getTransactions(workspaceId: number, limit?: number) {
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return [];
+  }
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export async function getTransactionsPaginated(
+  workspaceId: number,
+  page: number = 1,
+  pageSize: number = 25,
+  search?: string
+): Promise<PaginatedResult<TransactionWithCategory>> {
+  try {
+    const offset = (page - 1) * pageSize;
+
+    const whereConditions = search
+      ? and(
+          eq(transactions.workspace_id, workspaceId),
+          sql`LOWER(${transactions.description}) LIKE ${`%${search.toLowerCase()}%`}`
+        )
+      : eq(transactions.workspace_id, workspaceId);
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(transactions)
+      .where(whereConditions);
+    
+    const total = Number(countResult?.count ?? 0);
+
+    const data = await db
+      .select({
+        id: transactions.id,
+        workspace_id: transactions.workspace_id,
+        category_id: transactions.category_id,
+        amount: transactions.amount,
+        description: transactions.description,
+        date: transactions.date,
+        is_essential: transactions.is_essential,
+        category: categories,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.category_id, categories.id))
+      .where(whereConditions)
+      .orderBy(desc(transactions.date), desc(transactions.id))
+      .limit(pageSize)
+      .offset(offset);
+
+    const mapped = data.map(t => ({
+      ...t,
+      amount: roundCurrency(Number(t.amount || 0)),
+      date: t.date != null ? (typeof t.date === 'string' ? t.date : (!Number.isNaN(new Date(t.date).getTime()) ? new Date(t.date).toISOString() : null)) : null,
+    })) as TransactionWithCategory[];
+
+    return {
+      data: mapped,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  } catch (error) {
+    console.error('Error fetching paginated transactions:', error);
+    return { data: [], total: 0, page, pageSize, totalPages: 0 };
   }
 }
 
