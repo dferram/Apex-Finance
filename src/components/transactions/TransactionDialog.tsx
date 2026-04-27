@@ -8,30 +8,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
-
+import { EXCHANGE_RATE_USD_MXN, roundCurrency } from "@/lib/utils";
+ 
 export function TransactionDialog({ children }: { children?: React.ReactNode }) {
   const { activeWorkspace, categoriesHierarchical, addOptimisticTransaction, refreshData } = useApex();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-
+ 
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("MXN");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("expense");
   const [categoryId, setCategoryId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-
+ 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !description || !categoryId || !activeWorkspace) return;
-
+ 
     setLoading(true);
-
+ 
     const rawAmount = Number(amount);
-    const convertedAmount = currency === "USD" ? rawAmount * 17.31 : rawAmount;
+    const convertedAmount = currency === "USD" ? roundCurrency(rawAmount * EXCHANGE_RATE_USD_MXN) : roundCurrency(rawAmount);
     const txAmount = type === "expense" ? -Math.abs(convertedAmount) : Math.abs(convertedAmount);
-
+ 
     const txDate = new Date(date + "T12:00:00");
 
     const newTxData = {
@@ -50,19 +50,23 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
       category: categoriesHierarchical.find((c) => c.id === Number(categoryId)) || null,
     });
 
-    setOpen(false);
-
     try {
-      await createTransaction(newTxData);
+      const result = await createTransaction(newTxData);
+      if (result.success) {
+        setOpen(false);
+        setAmount("");
+        setDescription("");
+        setCategoryId("");
+        setDate(new Date().toISOString().slice(0, 10));
+      } else {
+        alert(`Error: ${result.error}`);
+      }
       await refreshData();
     } catch (error) {
       console.error(error);
+      alert("Network error");
     } finally {
       setLoading(false);
-      setAmount("");
-      setDescription("");
-      setCategoryId("");
-      setDate(new Date().toISOString().slice(0, 10));
     }
   };
 
@@ -129,9 +133,9 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
 
           {currency === "USD" && amount && (
             <div className="text-xs text-muted-foreground bg-workspace/5 p-2 rounded border border-workspace/10 flex justify-between items-center">
-              <span>Conversion (1 USD = 17.31 MXN):</span>
+              <span>Conversion (1 USD = {EXCHANGE_RATE_USD_MXN} MXN):</span>
               <span className="font-mono font-bold text-workspace">
-                ${(Number(amount) * 17.31).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                ${roundCurrency(Number(amount) * EXCHANGE_RATE_USD_MXN).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
               </span>
             </div>
           )}

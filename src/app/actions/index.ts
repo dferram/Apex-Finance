@@ -4,7 +4,8 @@ import { db } from '@/lib/db';
 import { workspaces, transactions, categories, financial_goals, partners, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
 import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { transactionSchema, goalSchema } from '@/lib/validations';
+import { transactionSchema, goalSchema, categorySchema, partnerSchema } from '@/lib/validations';
+import { roundCurrency } from '@/lib/utils';
 
 export interface CategoryNode extends Category {
   full_path: string;
@@ -115,12 +116,12 @@ export async function getTransactions(workspaceId: number, limit?: number) {
       .where(eq(transactions.workspace_id, workspaceId))
       .orderBy(desc(transactions.date), desc(transactions.id));
     
-    const data = limit ? await baseQuery.limit(limit) : await baseQuery;
+    const data = limit ? await baseQuery.limit(limit) : await baseQuery.limit(500); // Added default safety limit
       
     return data.map(t => ({
       ...t,
-      amount: Number(t.amount || 0),
-      date: t.date != null ? (typeof t.date === 'string' ? t.date : new Date(t.date).toISOString()) : null,
+      amount: roundCurrency(Number(t.amount || 0)),
+      date: t.date != null ? (typeof t.date === 'string' ? t.date : (!Number.isNaN(new Date(t.date).getTime()) ? new Date(t.date).toISOString() : null)) : null,
     })) as TransactionWithCategory[];
   } catch (error) {
     console.error('Error fetching transactions:', error);
@@ -165,8 +166,8 @@ export async function getTransactionsByDateRange(
       return {
         ...t,
         amount: Number(t.amount || 0),
-        date: dateVal != null ? (typeof dateVal === 'string' ? dateVal : new Date(dateVal).toISOString()) : null,
-        created_at: createdVal != null ? (typeof createdVal === 'string' ? createdVal : new Date(createdVal).toISOString()) : undefined,
+        date: dateVal != null ? (typeof dateVal === 'string' ? dateVal : (!Number.isNaN(new Date(dateVal).getTime()) ? new Date(dateVal).toISOString() : null)) : null,
+        created_at: createdVal != null ? (typeof createdVal === 'string' ? createdVal : (!Number.isNaN(new Date(createdVal).getTime()) ? new Date(createdVal).toISOString() : undefined)) : undefined,
       };
     }) as TransactionWithCategory[];
   } catch (error) {
@@ -180,12 +181,20 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
   { dateKey: string; dateLabel: string; Income: number; Expenses: number; Balance: number; Accumulated: number }[]
 > {
   try {
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - 20); // Buffer for the 15-day window
+
     const txs = await db
       .select({ date: transactions.date, amount: transactions.amount })
       .from(transactions)
-      .where(eq(transactions.workspace_id, workspaceId));
+      .where(
+        and(
+          eq(transactions.workspace_id, workspaceId),
+          gte(transactions.date, startDate)
+        )
+      );
 
-    const now = new Date();
     const dayMap = new Map<string, { Income: number; Expenses: number }>();
 
     for (const t of txs) {
@@ -199,11 +208,11 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
 
       const val = Number(t.amount || 0);
       const current = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
-      if (val > 0) current.Income += val;
-      else current.Expenses += Math.abs(val);
+      if (val > 0) current.Income = roundCurrency(current.Income + val);
+      else current.Expenses = roundCurrency(current.Expenses + Math.abs(val));
       dayMap.set(dateKey, current);
     }
-
+ 
     const result: { dateKey: string; dateLabel: string; Income: number; Expenses: number; Balance: number; Accumulated: number }[] = [];
     let accumulated = 0;
     for (let i = -15; i <= 14; i++) {
@@ -212,8 +221,8 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
       d.setHours(0, 0, 0, 0);
       const dateKey = d.toISOString().slice(0, 10);
       const { Income, Expenses } = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
-      const Balance = Income - Expenses;
-      accumulated += Balance;
+      const Balance = roundCurrency(Income - Expenses);
+      accumulated = roundCurrency(accumulated + Balance);
       result.push({
         dateKey,
         dateLabel: d.toLocaleDateString("en-US", { month: "short", day: "2-digit" }),
@@ -448,6 +457,7 @@ export async function createTransaction(data: CreateTransactionData) {
       date: dateValue,
     });
     if (!validation.success) {
+      console.error('Validation error creating transaction:', validation.error.format());
       const firstError = validation.error.issues[0]?.message ?? 'Invalid input';
       return { success: false, error: firstError };
     }
@@ -483,11 +493,11 @@ export async function getApexStats(workspaceId: number) {
 
     for (const tx of txs) {
       const val = Number(tx.amount || 0);
-      if (val > 0) totalIncome += val;
-      else totalExpense += Math.abs(val);
+      if (val > 0) totalIncome = roundCurrency(totalIncome + val);
+      else totalExpense = roundCurrency(totalExpense + Math.abs(val));
     }
     
-    const totalBalance = totalIncome - totalExpense;
+    const totalBalance = roundCurrency(totalIncome - totalExpense);
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -526,12 +536,17 @@ export async function getApexStats(workspaceId: number) {
 
 export async function createCategory(data: { workspace_id: number; name: string; monthly_budget?: number; parent_id?: number; is_project?: boolean }) {
   try {
+    const validation = categorySchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
     await db.insert(categories).values({
-      workspace_id: data.workspace_id,
-      name: data.name,
-      monthly_budget: data.monthly_budget?.toString(),
-      parent_id: data.parent_id,
-      is_project: data.is_project ?? false,
+      workspace_id: validation.data.workspace_id,
+      name: validation.data.name,
+      monthly_budget: validation.data.monthly_budget?.toString() ?? null,
+      parent_id: validation.data.parent_id ?? null,
+      is_project: validation.data.is_project ?? false,
     });
     revalidatePath('/');
     return { success: true };
@@ -753,11 +768,24 @@ export async function getPartners(workspaceId: number) {
 
 export async function createPartner(data: { workspace_id: number; name: string; percentage: number; email?: string }) {
   try {
+    const validation = partnerSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    // Check total percentage for workspace
+    const existingPartners = await db.select({ percentage: partners.percentage }).from(partners).where(eq(partners.workspace_id, data.workspace_id));
+    const currentTotal = existingPartners.reduce((acc, p) => acc + Number(p.percentage || 0), 0);
+    
+    if (currentTotal + data.percentage > 100) {
+      return { success: false, error: `El total de porcentaje (${currentTotal + data.percentage}%) excedería el 100%.` };
+    }
+
     const [partner] = await db.insert(partners).values({
-      workspace_id: data.workspace_id,
-      name: data.name,
-      percentage: data.percentage.toString(),
-      email: data.email || null,
+      workspace_id: validation.data.workspace_id,
+      name: validation.data.name,
+      percentage: validation.data.percentage.toString(),
+      email: validation.data.email || null,
     }).returning();
     revalidatePath('/reports');
     return { success: true, partner };
@@ -771,8 +799,27 @@ export async function updatePartner(id: number, data: { name?: string; percentag
   try {
     const updateData: Record<string, string | number | null> = {};
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.percentage !== undefined) updateData.percentage = data.percentage.toString();
     if (data.email !== undefined) updateData.email = data.email || null;
+
+    if (data.percentage !== undefined) {
+      const currentPartner = await db.select().from(partners).where(eq(partners.id, id)).limit(1).then(r => r[0]);
+      if (!currentPartner) return { success: false, error: 'Partner not found' };
+
+      const otherPartners = await db.select({ percentage: partners.percentage })
+        .from(partners)
+        .where(
+          and(
+            eq(partners.workspace_id, currentPartner.workspace_id),
+            sql`${partners.id} != ${id}`
+          )
+        );
+      
+      const otherTotal = otherPartners.reduce((acc, p) => acc + Number(p.percentage || 0), 0);
+      if (otherTotal + data.percentage > 100) {
+        return { success: false, error: `El total de porcentaje (${otherTotal + data.percentage}%) excedería el 100%.` };
+      }
+      updateData.percentage = data.percentage.toString();
+    }
 
     await db.update(partners).set(updateData).where(eq(partners.id, id));
     revalidatePath('/reports');
