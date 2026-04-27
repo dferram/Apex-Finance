@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { workspaces, transactions, categories, financial_goals, partners, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
 import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
-import { transactionSchema, goalSchema } from '@/lib/validations';
+import { transactionSchema, goalSchema, categorySchema, partnerSchema } from '@/lib/validations';
 
 export interface CategoryNode extends Category {
   full_path: string;
@@ -535,12 +535,17 @@ export async function getApexStats(workspaceId: number) {
 
 export async function createCategory(data: { workspace_id: number; name: string; monthly_budget?: number; parent_id?: number; is_project?: boolean }) {
   try {
+    const validation = categorySchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
     await db.insert(categories).values({
-      workspace_id: data.workspace_id,
-      name: data.name,
-      monthly_budget: data.monthly_budget?.toString(),
-      parent_id: data.parent_id,
-      is_project: data.is_project ?? false,
+      workspace_id: validation.data.workspace_id,
+      name: validation.data.name,
+      monthly_budget: validation.data.monthly_budget?.toString() ?? null,
+      parent_id: validation.data.parent_id ?? null,
+      is_project: validation.data.is_project ?? false,
     });
     revalidatePath('/');
     return { success: true };
@@ -762,11 +767,24 @@ export async function getPartners(workspaceId: number) {
 
 export async function createPartner(data: { workspace_id: number; name: string; percentage: number; email?: string }) {
   try {
+    const validation = partnerSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0]?.message ?? 'Invalid input' };
+    }
+
+    // Check total percentage for workspace
+    const existingPartners = await db.select({ percentage: partners.percentage }).from(partners).where(eq(partners.workspace_id, data.workspace_id));
+    const currentTotal = existingPartners.reduce((acc, p) => acc + Number(p.percentage || 0), 0);
+    
+    if (currentTotal + data.percentage > 100) {
+      return { success: false, error: `El total de porcentaje (${currentTotal + data.percentage}%) excedería el 100%.` };
+    }
+
     const [partner] = await db.insert(partners).values({
-      workspace_id: data.workspace_id,
-      name: data.name,
-      percentage: data.percentage.toString(),
-      email: data.email || null,
+      workspace_id: validation.data.workspace_id,
+      name: validation.data.name,
+      percentage: validation.data.percentage.toString(),
+      email: validation.data.email || null,
     }).returning();
     revalidatePath('/reports');
     return { success: true, partner };
@@ -780,8 +798,27 @@ export async function updatePartner(id: number, data: { name?: string; percentag
   try {
     const updateData: Record<string, string | number | null> = {};
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.percentage !== undefined) updateData.percentage = data.percentage.toString();
     if (data.email !== undefined) updateData.email = data.email || null;
+
+    if (data.percentage !== undefined) {
+      const currentPartner = await db.select().from(partners).where(eq(partners.id, id)).limit(1).then(r => r[0]);
+      if (!currentPartner) return { success: false, error: 'Partner not found' };
+
+      const otherPartners = await db.select({ percentage: partners.percentage })
+        .from(partners)
+        .where(
+          and(
+            eq(partners.workspace_id, currentPartner.workspace_id),
+            sql`${partners.id} != ${id}`
+          )
+        );
+      
+      const otherTotal = otherPartners.reduce((acc, p) => acc + Number(p.percentage || 0), 0);
+      if (otherTotal + data.percentage > 100) {
+        return { success: false, error: `El total de porcentaje (${otherTotal + data.percentage}%) excedería el 100%.` };
+      }
+      updateData.percentage = data.percentage.toString();
+    }
 
     await db.update(partners).set(updateData).where(eq(partners.id, id));
     revalidatePath('/reports');
