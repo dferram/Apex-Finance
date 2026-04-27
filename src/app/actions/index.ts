@@ -180,12 +180,20 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
   { dateKey: string; dateLabel: string; Income: number; Expenses: number; Balance: number; Accumulated: number }[]
 > {
   try {
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - 20); // Buffer for the 15-day window
+
     const txs = await db
       .select({ date: transactions.date, amount: transactions.amount })
       .from(transactions)
-      .where(eq(transactions.workspace_id, workspaceId));
+      .where(
+        and(
+          eq(transactions.workspace_id, workspaceId),
+          gte(transactions.date, startDate)
+        )
+      );
 
-    const now = new Date();
     const dayMap = new Map<string, { Income: number; Expenses: number }>();
 
     for (const t of txs) {
@@ -448,6 +456,7 @@ export async function createTransaction(data: CreateTransactionData) {
       date: dateValue,
     });
     if (!validation.success) {
+      console.error('Validation error creating transaction:', validation.error.format());
       const firstError = validation.error.issues[0]?.message ?? 'Invalid input';
       return { success: false, error: firstError };
     }

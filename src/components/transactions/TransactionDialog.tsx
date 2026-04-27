@@ -50,19 +50,23 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
       category: categoriesHierarchical.find((c) => c.id === Number(categoryId)) || null,
     });
 
-    setOpen(false);
-
     try {
-      await createTransaction(newTxData);
+      const result = await createTransaction(newTxData);
+      if (result.success) {
+        setOpen(false);
+        setAmount("");
+        setDescription("");
+        setCategoryId("");
+        setDate(new Date().toISOString().slice(0, 10));
+      } else {
+        alert(`Error: ${result.error}`);
+      }
       await refreshData();
     } catch (error) {
       console.error(error);
+      alert("Network error");
     } finally {
       setLoading(false);
-      setAmount("");
-      setDescription("");
-      setCategoryId("");
-      setDate(new Date().toISOString().slice(0, 10));
     }
   };
 
