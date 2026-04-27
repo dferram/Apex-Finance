@@ -1,8 +1,10 @@
 "use client";
 
 import { useApex } from "@/context/ApexContext";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
+import { getTransactionsPaginated, type PaginatedResult } from "@/app/actions";
+import type { TransactionWithCategory } from "@/lib/schema";
 import {
   Table,
   TableBody,
@@ -14,31 +16,61 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { TransactionDialog } from "@/components/transactions/TransactionDialog";
 import { CategoryDialog } from "@/components/transactions/CategoryDialog";
 
+const PAGE_SIZE = 25;
+
 export default function TransactionsPage() {
-  const { transactions, categories, activeWorkspace } = useApex();
+  const { categories, activeWorkspace } = useApex();
   const [searchTerm, setSearchTerm] = useState("");
-  const [displayLimit, setDisplayLimit] = useState(50);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState<PaginatedResult<TransactionWithCategory> | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const filteredTransactions = useMemo(() => {
-    const filtered = transactions.filter(t => 
-      t.description.toLowerCase().includes(searchTerm.toLowerCase())
-    ).sort((a, b) => {
-      const dateA = a.date ? new Date(a.date).getTime() : 0;
-      const dateB = b.date ? new Date(b.date).getTime() : 0;
-      return dateB - dateA;
-    });
-    return filtered.slice(0, displayLimit);
-  }, [transactions, searchTerm, displayLimit]);
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  const hasMore = transactions.length > displayLimit;
+  const fetchPage = useCallback(async () => {
+    if (!activeWorkspace?.id) return;
+    setLoading(true);
+    try {
+      const data = await getTransactionsPaginated(
+        activeWorkspace.id,
+        page,
+        PAGE_SIZE,
+        debouncedSearch || undefined
+      );
+      setResult(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeWorkspace?.id, page, debouncedSearch]);
+
+  useEffect(() => {
+    fetchPage();
+  }, [fetchPage]);
+
+  const transactions = result?.data ?? [];
+  const totalPages = result?.totalPages ?? 0;
+  const total = result?.total ?? 0;
 
   const isProf = activeWorkspace?.is_professional;
   const primaryBadgeColor = isProf ? "bg-blue-500/10 text-blue-500" : "bg-emerald-500/10 text-emerald-500";
   const secondaryBadgeColor = "bg-muted text-muted-foreground";
+
+  const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endItem = Math.min(page * PAGE_SIZE, total);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
@@ -70,10 +102,6 @@ export default function TransactionsPage() {
           </div>
           <div className="flex items-center gap-2">
             <CategoryDialog />
-            <Button variant="outline" className="shrink-0 bg-background/50">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter by Category
-            </Button>
           </div>
         </div>
 
@@ -87,58 +115,104 @@ export default function TransactionsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTransactions.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                  Loading…
+                </TableCell>
+              </TableRow>
+            ) : transactions.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                   No transactions found matching your criteria.
                 </TableCell>
               </TableRow>
             ) : (
-              <>
-                {filteredTransactions.map((tx) => {
-                  const cat = categories.find(c => c.id === tx.category_id);
-                  const isIncome = tx.amount > 0;
-                  
-                  const amountClass = isIncome 
-                    ? (isProf ? "text-blue-500" : "text-emerald-500") 
-                    : "text-foreground";
+              transactions.map((tx) => {
+                const cat = categories.find(c => c.id === tx.category_id);
+                const isIncome = tx.amount > 0;
+                
+                const amountClass = isIncome 
+                  ? (isProf ? "text-blue-500" : "text-emerald-500") 
+                  : "text-foreground";
 
-                  return (
-                    <TableRow key={tx.id} className="border-border/50 hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-mono text-sm text-muted-foreground pl-6">
-                        {tx.date ? format(new Date(tx.date), "MMM dd, yyyy") : "—"}
-                      </TableCell>
-                      <TableCell className="font-medium text-foreground/90">
-                        {tx.description}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={`text-xs px-2 py-0.5 rounded-sm font-medium ${tx.is_essential ? primaryBadgeColor : secondaryBadgeColor}`}>
-                          {cat?.name || "Uncategorized"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className={`text-right font-mono text-base tracking-tight pr-6 ${amountClass}`}>
-                        {isIncome ? "+" : "-"}${Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {hasMore && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-16 text-center">
-                      <Button 
-                        variant="ghost" 
-                        onClick={() => setDisplayLimit(prev => prev + 50)}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        Load more transactions ({transactions.length - displayLimit} remaining)
-                      </Button>
+                return (
+                  <TableRow key={tx.id} className="border-border/50 hover:bg-muted/30 transition-colors">
+                    <TableCell className="font-mono text-sm text-muted-foreground pl-6">
+                      {tx.date ? format(new Date(tx.date), "MMM dd, yyyy") : "—"}
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground/90">
+                      {tx.description}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={`text-xs px-2 py-0.5 rounded-sm font-medium ${tx.is_essential ? primaryBadgeColor : secondaryBadgeColor}`}>
+                        {cat?.name || "Uncategorized"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={`text-right font-mono text-base tracking-tight pr-6 ${amountClass}`}>
+                      {isIncome ? "+" : "-"}${Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                   </TableRow>
-                )}
-              </>
+                );
+              })
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination Controls */}
+        {totalPages > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/10">
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{startItem}–{endItem}</span> of{" "}
+              <span className="font-medium text-foreground">{total.toLocaleString()}</span> transactions
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPage(1)}
+                disabled={page === 1 || loading}
+                aria-label="First page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPage(p => p - 1)}
+                disabled={page === 1 || loading}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-mono px-3 text-muted-foreground">
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= totalPages || loading}
+                aria-label="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPage(totalPages)}
+                disabled={page >= totalPages || loading}
+                aria-label="Last page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

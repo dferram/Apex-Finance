@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTransactions, createTransaction } from '@/app/actions';
+import { getTransactions, getTransactionsPaginated, createTransaction } from '@/app/actions';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const workspaceId = searchParams.get('workspace_id');
     const limit = searchParams.get('limit');
+    const page = searchParams.get('page');
+    const pageSize = searchParams.get('page_size');
+    const search = searchParams.get('search');
 
     if (!workspaceId) {
       return NextResponse.json(
@@ -14,8 +17,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const wsId = parseInt(workspaceId);
+
+    // If page is specified, use paginated endpoint
+    if (page) {
+      const result = await getTransactionsPaginated(
+        wsId,
+        parseInt(page),
+        pageSize ? parseInt(pageSize) : 25,
+        search || undefined
+      );
+      return NextResponse.json(result);
+    }
+
+    // Legacy: simple limit-based fetch
     const parsedLimit = limit ? parseInt(limit) : undefined;
-    const transactions = await getTransactions(parseInt(workspaceId), parsedLimit);
+    const transactions = await getTransactions(wsId, parsedLimit);
     return NextResponse.json(transactions);
   } catch (error) {
     console.error('Error in GET /api/transactions:', error);
