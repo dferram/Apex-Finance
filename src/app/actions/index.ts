@@ -5,6 +5,7 @@ import { workspaces, transactions, categories, financial_goals, partners, type C
 import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { transactionSchema, goalSchema, categorySchema, partnerSchema } from '@/lib/validations';
+import { roundCurrency } from '@/lib/utils';
 
 export interface CategoryNode extends Category {
   full_path: string;
@@ -115,11 +116,11 @@ export async function getTransactions(workspaceId: number, limit?: number) {
       .where(eq(transactions.workspace_id, workspaceId))
       .orderBy(desc(transactions.date), desc(transactions.id));
     
-    const data = limit ? await baseQuery.limit(limit) : await baseQuery;
+    const data = limit ? await baseQuery.limit(limit) : await baseQuery.limit(500); // Added default safety limit
       
     return data.map(t => ({
       ...t,
-      amount: Number(t.amount || 0),
+      amount: roundCurrency(Number(t.amount || 0)),
       date: t.date != null ? (typeof t.date === 'string' ? t.date : (!Number.isNaN(new Date(t.date).getTime()) ? new Date(t.date).toISOString() : null)) : null,
     })) as TransactionWithCategory[];
   } catch (error) {
@@ -207,11 +208,11 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
 
       const val = Number(t.amount || 0);
       const current = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
-      if (val > 0) current.Income += val;
-      else current.Expenses += Math.abs(val);
+      if (val > 0) current.Income = roundCurrency(current.Income + val);
+      else current.Expenses = roundCurrency(current.Expenses + Math.abs(val));
       dayMap.set(dateKey, current);
     }
-
+ 
     const result: { dateKey: string; dateLabel: string; Income: number; Expenses: number; Balance: number; Accumulated: number }[] = [];
     let accumulated = 0;
     for (let i = -15; i <= 14; i++) {
@@ -220,8 +221,8 @@ export async function getCashFlowPulseData(workspaceId: number): Promise<
       d.setHours(0, 0, 0, 0);
       const dateKey = d.toISOString().slice(0, 10);
       const { Income, Expenses } = dayMap.get(dateKey) ?? { Income: 0, Expenses: 0 };
-      const Balance = Income - Expenses;
-      accumulated += Balance;
+      const Balance = roundCurrency(Income - Expenses);
+      accumulated = roundCurrency(accumulated + Balance);
       result.push({
         dateKey,
         dateLabel: d.toLocaleDateString("en-US", { month: "short", day: "2-digit" }),
@@ -492,11 +493,11 @@ export async function getApexStats(workspaceId: number) {
 
     for (const tx of txs) {
       const val = Number(tx.amount || 0);
-      if (val > 0) totalIncome += val;
-      else totalExpense += Math.abs(val);
+      if (val > 0) totalIncome = roundCurrency(totalIncome + val);
+      else totalExpense = roundCurrency(totalExpense + Math.abs(val));
     }
     
-    const totalBalance = totalIncome - totalExpense;
+    const totalBalance = roundCurrency(totalIncome - totalExpense);
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
