@@ -15,6 +15,15 @@ export const workspaces = pgTable('workspaces', {
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const wallets = pgTable('wallets', {
+  id: serial('id').primaryKey(),
+  workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
+  name: text('name').notNull(),
+  balance: numeric('balance', { precision: 15, scale: 2 }).default('0'),
+  currency: text('currency').default('MXN'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const categories = pgTable('categories', {
   id: serial('id').primaryKey(),
   workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
@@ -26,6 +35,7 @@ export const categories = pgTable('categories', {
 export const transactions = pgTable('transactions', {
   id: serial('id').primaryKey(),
   workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
+  wallet_id: integer('wallet_id').references(() => wallets.id),
   category_id: integer('category_id').references(() => categories.id).notNull(),
   description: text('description').notNull(),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
@@ -51,5 +61,15 @@ export const partners = pgTable('partners', {
   name: text('name').notNull(),
   percentage: numeric('percentage', { precision: 5, scale: 2 }).notNull(), // 0.00 to 100.00
   email: text('email'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const budgets = pgTable('budgets', {
+  id: serial('id').primaryKey(),
+  workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
+  category_id: integer('category_id').references(() => categories.id).notNull(),
+  amount: numeric('amount', { precision: 15, scale: 2 }).notNull().default('0'),
+  month: integer('month').notNull(), // 1-12
+  year: integer('year').notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
