@@ -609,15 +609,15 @@ export async function createCategory(data: { workspace_id: number; name: string;
       return { success: false, error: validation.error.issues[0]?.message ?? 'Invalid input' };
     }
 
-    await db.insert(categories).values({
+    const [category] = await db.insert(categories).values({
       workspace_id: validation.data.workspace_id,
       name: validation.data.name,
       monthly_budget: validation.data.monthly_budget?.toString() ?? null,
       parent_id: validation.data.parent_id ?? null,
       is_project: validation.data.is_project ?? false,
-    });
+    }).returning();
     revalidatePath('/');
-    return { success: true };
+    return { success: true, category };
   } catch (error) {
     console.error('Error creating category:', error);
     return { success: false, error: 'Could not create category' };
@@ -639,16 +639,16 @@ export async function createFinancialGoal(data: { user_id: number; name: string;
       return { success: false, error: firstError };
     }
 
-    await db.insert(financial_goals).values({
+    const [goal] = await db.insert(financial_goals).values({
       user_id: data.user_id,
       name: validation.data.name,
       target_amount: validation.data.target_amount.toString(),
       current_amount: '0',
       deadline: validation.data.deadline,
-    });
+    }).returning();
     revalidatePath('/goals');
     revalidatePath('/');
-    return { success: true };
+    return { success: true, goal };
   } catch (error) {
     console.error('Error creating goal:', error);
     return { success: false, error: 'Could not create goal' };
