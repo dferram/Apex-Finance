@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { EXCHANGE_RATE_USD_MXN, roundCurrency } from "@/lib/utils";
  
 export function TransactionDialog({ children }: { children?: React.ReactNode }) {
-  const { activeWorkspace, categoriesHierarchical, addOptimisticTransaction, refreshData } = useApex();
+  const { activeWorkspace, categoriesHierarchical, wallets, addOptimisticTransaction, refreshData } = useApex();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
  
@@ -20,6 +20,7 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
   const [description, setDescription] = useState("");
   const [type, setType] = useState("expense");
   const [categoryId, setCategoryId] = useState("");
+  const [walletId, setWalletId] = useState("none");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
  
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,6 +38,7 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
     const newTxData = {
       workspace_id: activeWorkspace.id,
       category_id: Number(categoryId),
+      wallet_id: walletId !== "none" ? Number(walletId) : undefined,
       amount: txAmount,
       description,
       date: txDate.toISOString(),
@@ -57,6 +59,7 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
         setAmount("");
         setDescription("");
         setCategoryId("");
+        setWalletId("none");
         setDate(new Date().toISOString().slice(0, 10));
       } else {
         alert(`Error: ${result.error}`);
@@ -162,18 +165,35 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select value={categoryId} onValueChange={setCategoryId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {wsCategories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id.toString()}>{cat.full_path}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={categoryId} onValueChange={setCategoryId} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {wsCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>{cat.full_path}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="wallet">Wallet (Optional)</Label>
+              <Select value={walletId} onValueChange={setWalletId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select wallet" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Wallet</SelectItem>
+                  {wallets?.map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id.toString()}>{wallet.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="pt-4 flex justify-end space-x-2">

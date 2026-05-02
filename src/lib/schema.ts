@@ -7,6 +7,8 @@ export type Category = InferSelectModel<typeof categories>;
 export type Transaction = InferSelectModel<typeof transactions>;
 export type Goal = InferSelectModel<typeof financial_goals>;
 export type Partner = InferSelectModel<typeof partners>;
+export type Wallet = InferSelectModel<typeof wallets>;
+export type Budget = InferSelectModel<typeof budgets>;
 
 export interface TransactionWithCategory extends Omit<Transaction, 'amount'> {
   amount: number;
@@ -43,9 +45,29 @@ export const categories = pgTable('categories', {
   is_project: boolean('is_project').default(false),
 });
 
+export const wallets = pgTable('wallets', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
+  name: text('name').notNull(),
+  balance: numeric('balance').default('0'),
+  currency: text('currency').default('MXN'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const budgets = pgTable('budgets', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
+  category_id: integer('category_id').references(() => categories.id).notNull(),
+  amount: numeric('amount').notNull().default('0'),
+  month: integer('month').notNull(),
+  year: integer('year').notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const transactions = pgTable('transactions', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   workspace_id: integer('workspace_id').references(() => workspaces.id).notNull(),
+  wallet_id: integer('wallet_id').references(() => wallets.id),
   category_id: integer('category_id').references(() => categories.id).notNull(),
   amount: numeric('amount').notNull(),
   description: text('description').notNull(),
@@ -85,6 +107,8 @@ export const workspacesRelations = relations(workspaces, ({ one, many }) => ({
   }),
   categories: many(categories),
   transactions: many(transactions),
+  wallets: many(wallets),
+  budgets: many(budgets),
 }));
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
@@ -110,6 +134,29 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
   category: one(categories, {
     fields: [transactions.category_id],
+    references: [categories.id],
+  }),
+  wallet: one(wallets, {
+    fields: [transactions.wallet_id],
+    references: [wallets.id],
+  }),
+}));
+
+export const walletsRelations = relations(wallets, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [wallets.workspace_id],
+    references: [workspaces.id],
+  }),
+  transactions: many(transactions),
+}));
+
+export const budgetsRelations = relations(budgets, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [budgets.workspace_id],
+    references: [workspaces.id],
+  }),
+  category: one(categories, {
+    fields: [budgets.category_id],
     references: [categories.id],
   }),
 }));
