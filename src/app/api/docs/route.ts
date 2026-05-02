@@ -668,6 +668,92 @@ const swaggerDocument = {
         },
       },
     },
+    '/api/wallets': {
+      get: {
+        summary: 'Get wallets',
+        description: 'Retrieves all wallets for a specific workspace',
+        tags: ['Wallets'],
+        parameters: [
+          {
+            name: 'workspace_id',
+            in: 'query',
+            required: true,
+            schema: { type: 'integer' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Successful response',
+            content: {
+              'application/json': {
+                schema: { type: 'array', items: { $ref: '#/components/schemas/Wallet' } },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Create wallet',
+        description: 'Creates a new wallet',
+        tags: ['Wallets'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateWallet' },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Wallet created successfully',
+          },
+        },
+      },
+    },
+    '/api/budgets': {
+      get: {
+        summary: 'Get budgets',
+        description: 'Retrieves all budgets for a specific workspace',
+        tags: ['Budgets'],
+        parameters: [
+          {
+            name: 'workspace_id',
+            in: 'query',
+            required: true,
+            schema: { type: 'integer' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Successful response',
+            content: {
+              'application/json': {
+                schema: { type: 'array', items: { $ref: '#/components/schemas/Budget' } },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: 'Create budget',
+        description: 'Creates a new historical budget',
+        tags: ['Budgets'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateBudget' },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Budget created successfully',
+          },
+        },
+      },
+    },
   },
   components: {
     schemas: {
@@ -1033,6 +1119,50 @@ const swaggerDocument = {
             type: 'string',
             nullable: true,
           },
+        },
+      },
+      Wallet: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          workspace_id: { type: 'integer' },
+          name: { type: 'string' },
+          balance: { type: 'string' },
+          currency: { type: 'string' },
+          created_at: { type: 'string', format: 'date-time' },
+        },
+      },
+      CreateWallet: {
+        type: 'object',
+        required: ['workspace_id', 'name'],
+        properties: {
+          workspace_id: { type: 'integer' },
+          name: { type: 'string' },
+          initial_balance: { type: 'number' },
+          currency: { type: 'string' },
+        },
+      },
+      Budget: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          workspace_id: { type: 'integer' },
+          category_id: { type: 'integer' },
+          amount: { type: 'string' },
+          month: { type: 'integer' },
+          year: { type: 'integer' },
+          created_at: { type: 'string', format: 'date-time' },
+        },
+      },
+      CreateBudget: {
+        type: 'object',
+        required: ['workspace_id', 'category_id', 'amount', 'month', 'year'],
+        properties: {
+          workspace_id: { type: 'integer' },
+          category_id: { type: 'integer' },
+          amount: { type: 'number' },
+          month: { type: 'integer' },
+          year: { type: 'integer' },
         },
       },
     },
