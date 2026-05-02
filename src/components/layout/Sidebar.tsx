@@ -2,11 +2,12 @@
 
 import { useTransition, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, BarChart3, Target, Sparkles, Boxes, Settings, Loader2 } from "lucide-react";
+import { LayoutDashboard, Receipt, BarChart3, Target, Sparkles, Boxes, Settings, Loader2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
+  { label: "Wallets", icon: Wallet, href: "/wallets" },
   { label: "Transactions", icon: Receipt, href: "/transactions" },
   { label: "Reports", icon: BarChart3, href: "/reports" },
   { label: "Categories", icon: Boxes, href: "/categories" },

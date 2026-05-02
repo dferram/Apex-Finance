@@ -2,8 +2,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useOptimistic, useRef, useCallback } from "react";
-import { getTransactions, getApexStats, getCategories, getCategoriesHierarchical, getCategoryTotalsHierarchical, getFinancialGoals, type CategoryNode } from "@/app/actions";
-import { type User, type Workspace, type Category, type TransactionWithCategory, type GoalWithNumbers } from "@/lib/schema";
+import { getTransactions, getApexStats, getCategories, getCategoriesHierarchical, getCategoryTotalsHierarchical, getFinancialGoals, getWallets, type CategoryNode } from "@/app/actions";
+import { type User, type Workspace, type Category, type TransactionWithCategory, type GoalWithNumbers, type Wallet } from "@/lib/schema";
 
 interface ApexStats {
   totalBalance: number;
@@ -22,6 +22,7 @@ interface ApexContextType {
   categoriesHierarchicalTotals: { category_id: number; total_amount: string }[];
   transactions: TransactionWithCategory[];
   goals: GoalWithNumbers[];
+  wallets: Wallet[];
   apexScore: number;
   stats: ApexStats;
   isLoading: boolean;
@@ -49,6 +50,7 @@ export function ApexProvider({
   const [categoriesHierarchicalTotals, setCategoriesHierarchicalTotals] = useState<{ category_id: number; total_amount: string }[]>([]);
   const [stats, setStats] = useState<ApexStats>({ totalBalance: 0, weeklyExpense: 0, totalIncome: 0, totalExpense: 0 });
   const [goals, setGoals] = useState<GoalWithNumbers[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -72,20 +74,22 @@ export function ApexProvider({
       setCategoriesHierarchical(cached.data.catsHier);
       setCategoriesHierarchicalTotals(cached.data.totals);
       setGoals(cached.data.goals);
+      setWallets(cached.data.wallets);
       return;
     }
 
     try {
-      const [txs, newStats, newCats, newCatsHier, newTotals, newGoals] = await Promise.all([
+      const [txs, newStats, newCats, newCatsHier, newTotals, newGoals, newWallets] = await Promise.all([
         getTransactions(workspaceId),
         getApexStats(workspaceId),
         getCategories(workspaceId),
         getCategoriesHierarchical(workspaceId),
         getCategoryTotalsHierarchical(workspaceId),
         getFinancialGoals(user.id),
+        getWallets(workspaceId)
       ]);
       
-      const data = { txs, stats: newStats, cats: newCats, catsHier: newCatsHier, totals: newTotals, goals: newGoals };
+      const data = { txs, stats: newStats, cats: newCats, catsHier: newCatsHier, totals: newTotals, goals: newGoals, wallets: newWallets };
       dataCache.current.set(workspaceId, { timestamp: now, data });
       
       setTransactions(txs);
@@ -94,6 +98,7 @@ export function ApexProvider({
       setCategoriesHierarchical(newCatsHier);
       setCategoriesHierarchicalTotals(newTotals);
       setGoals(newGoals);
+      setWallets(newWallets);
     } catch (e) {
       console.error(e);
     }
@@ -182,6 +187,7 @@ export function ApexProvider({
     categoriesHierarchicalTotals,
     transactions: optimisticTransactions,
     goals,
+    wallets,
     apexScore,
     stats,
     isLoading,
