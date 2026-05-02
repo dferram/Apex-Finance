@@ -934,7 +934,7 @@ export async function updateWorkspace(
 
 // ── Wallet mutations ────────────────────────────────────────────────────────
 
-import { wallets } from '@/lib/schema';
+import { wallets, budgets } from '@/lib/schema';
 
 export async function getWallets(workspaceId: number) {
   try {
@@ -990,5 +990,34 @@ export async function getWalletReport(walletId: number) {
   } catch (error) {
     console.error('Error fetching wallet report:', error);
     return { success: false, report: {} };
+  }
+}
+
+// ── Budget mutations ────────────────────────────────────────────────────────
+
+export async function getBudgets(workspaceId: number) {
+  try {
+    const data = await db.select().from(budgets).where(eq(budgets.workspace_id, workspaceId)).orderBy(desc(budgets.created_at));
+    return data;
+  } catch (error) {
+    console.error('Error fetching budgets:', error);
+    return [];
+  }
+}
+
+export async function createBudget(data: { workspace_id: number; category_id: number; amount: number; month: number; year: number }) {
+  try {
+    const [budget] = await db.insert(budgets).values({
+      workspace_id: data.workspace_id,
+      category_id: data.category_id,
+      amount: data.amount.toString(),
+      month: data.month,
+      year: data.year,
+    }).returning();
+    revalidatePath('/categories'); // Or wherever budgets will be displayed
+    return { success: true, budget };
+  } catch (error) {
+    console.error('Error creating budget:', error);
+    return { success: false, error: 'Failed to create budget' };
   }
 }
