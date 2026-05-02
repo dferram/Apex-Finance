@@ -931,3 +931,64 @@ export async function updateWorkspace(
     return { success: false, error: 'Could not update workspace' };
   }
 }
+
+// ── Wallet mutations ────────────────────────────────────────────────────────
+
+import { wallets } from '@/lib/schema';
+
+export async function getWallets(workspaceId: number) {
+  try {
+    const data = await db.select().from(wallets).where(eq(wallets.workspace_id, workspaceId)).orderBy(desc(wallets.created_at));
+    // Calculate current balance based on transactions? 
+    // Actually the wallet has a "balance" field, but if we want true balance we can sum transactions. 
+    // For now we return the wallets.
+    return data;
+  } catch (error) {
+    console.error('Error fetching wallets:', error);
+    return [];
+  }
+}
+
+export async function createWallet(data: { workspace_id: number; name: string; currency?: string; initial_balance?: number }) {
+  try {
+    const [wallet] = await db.insert(wallets).values({
+      workspace_id: data.workspace_id,
+      name: data.name,
+      currency: data.currency || 'MXN',
+      balance: data.initial_balance?.toString() || '0',
+    }).returning();
+    revalidatePath('/wallets');
+    return { success: true, wallet };
+  } catch (error) {
+    console.error('Error creating wallet:', error);
+    return { success: false, error: 'Failed to create wallet' };
+  }
+}
+
+export async function getWalletReport(walletId: number) {
+  try {
+    // Get transactions for this wallet, grouped by category
+    const txs = await db.select({
+      amount: transactions.amount,
+      category_name: categories.name,
+      is_essential: transactions.is_essential
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.category_id, categories.id))
+    .where(eq(transactions.wallet_id, walletId));
+
+    const report = txs.reduce((acc, tx) => {
+      const cat = tx.category_name || 'Uncategorized';
+      const amount = Number(tx.amount || 0);
+      if (amount < 0) { // Expenses only
+        acc[cat] = (acc[cat] || 0) + Math.abs(amount);
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    return { success: true, report };
+  } catch (error) {
+    console.error('Error fetching wallet report:', error);
+    return { success: false, report: {} };
+  }
+}
