@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 
 // Skip these tests as they require database connection
 // Run these as integration tests with proper DB setup
-describe.skip('Server Actions (Integration Tests - Requires DB)', () => {
+describe('Server Actions (Integration Tests)', () => {
   describe('getWorkspaces', () => {
     it('should return an array of workspaces', async () => {
       // Test implementation requires DB connection
