@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { AppLoadingSkeleton } from "@/components/layout/AppLoadingSkeleton";
 
 import { getWorkspaces } from "@/app/actions";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Apex Finance | Intelligence Platform",
@@ -20,28 +21,33 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const workspaces = await getWorkspaces();
+  const user = await getCurrentUser();
+  const workspaces = user ? await getWorkspaces() : [];
 
   return (
     <html lang="en" className="dark">
       <body className={`min-h-screen bg-background antialiased selection:bg-workspace/30 selection:text-workspace font-sans`}>
-        <ApexProvider 
-          initialWorkspaces={workspaces}
-        >
-          <div className="relative flex min-h-screen flex-col">
-            <Header />
-            <div className="flex flex-1 overflow-hidden">
-              <Sidebar />
-              <main className="flex-1 overflow-y-auto bg-muted/20">
-                <div className="container p-6 pb-24 mx-auto max-w-7xl">
-                  <AppLoadingSkeleton>
-                    {children}
-                  </AppLoadingSkeleton>
-                </div>
-              </main>
+        {user ? (
+          <ApexProvider 
+            initialWorkspaces={workspaces}
+          >
+            <div className="relative flex min-h-screen flex-col">
+              <Header />
+              <div className="flex flex-1 overflow-hidden">
+                <Sidebar />
+                <main className="flex-1 overflow-y-auto bg-muted/20">
+                  <div className="container p-6 pb-24 mx-auto max-w-7xl">
+                    <AppLoadingSkeleton>
+                      {children}
+                    </AppLoadingSkeleton>
+                  </div>
+                </main>
+              </div>
             </div>
-          </div>
-        </ApexProvider>
+          </ApexProvider>
+        ) : (
+          children
+        )}
       </body>
     </html>
   );
