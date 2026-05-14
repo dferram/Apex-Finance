@@ -25,6 +25,7 @@ export const users = pgTable('users', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
+  password: text('password').notNull(),
   created_at: timestamp('created_at'),
 });
 

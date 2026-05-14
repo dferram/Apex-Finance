@@ -10,7 +10,10 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "db:backfill-transaction-dates": "node scripts/backfill-transaction-dates.mjs"
+    "db:backfill-transaction-dates": "node scripts/backfill-transaction-dates.mjs",
+    "db:add-password-column": "node scripts/add-password-column.mjs",
+    "db:update-password": "node scripts/update-user-password.mjs",
+    "db:list-users": "node scripts/list-users.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -20,6 +23,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -44,6 +48,7 @@
     "@commitlint/config-conventional": "^20.4.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",
     "@types/react": "^18",
