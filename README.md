@@ -19,6 +19,7 @@
 
 ## Características principales
 
+- **🔐 Autenticación** — Sistema completo de login/logout con sesiones seguras y encriptación de contraseñas
 - **Dashboard (Command Center)** — KPIs en tiempo real, gráfico de flujo de caja y donut de categorías
 - **Ledger Journal** — Historial completo de transacciones con búsqueda y filtros por categoría
 - **Strategic Objectives** — Seguimiento de metas financieras con barras de progreso
@@ -37,6 +38,7 @@
 | Estilos     | Tailwind CSS + Radix UI              |
 | ORM         | Drizzle ORM                          |
 | Base de datos | PostgreSQL (via `pg`)              |
+| Autenticación | bcryptjs + HTTP-only cookies       |
 | Gráficos    | Recharts                             |
 | Exportación | jsPDF + jspdf-autotable              |
 | Validación  | Zod                                  |
@@ -63,6 +65,7 @@ erDiagram
         bigint id PK
         string name
         string email UK
+        string password
         timestamp created_at
     }
 
@@ -160,6 +163,26 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
+### 6. Configurar autenticación (Primera vez)
+
+Si es la primera vez que ejecutas el proyecto, necesitas agregar la columna de contraseñas:
+
+```bash
+npm run db:add-password-column
+```
+
+Luego, actualiza la contraseña del usuario existente:
+
+```bash
+npm run db:update-password dferramm@gmail.com admin123
+```
+
+**Credenciales de prueba:**
+- Email: `dferramm@gmail.com`
+- Contraseña: `admin123`
+
+Para más información sobre autenticación, consulta [`QUICK_START_AUTH.md`](./QUICK_START_AUTH.md)
+
 ---
 
 ## Estructura del proyecto
@@ -191,11 +214,20 @@ src/
 
 ## Scripts disponibles
 
+### Desarrollo
 ```bash
 npm run dev      # Servidor de desarrollo
 npm run build    # Build de producción
 npm run start    # Servidor de producción
 npm run lint     # Linter ESLint
+```
+
+### Base de Datos
+```bash
+npm run db:add-password-column           # Agregar columna password a users
+npm run db:update-password <email> <pwd> # Actualizar contraseña de usuario
+npm run db:list-users                    # Listar todos los usuarios
+npm run db:backfill-transaction-dates    # Backfill de fechas de transacciones
 ```
 
 ---
