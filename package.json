@@ -10,7 +10,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "db:backfill-transaction-dates": "node scripts/backfill-transaction-dates.mjs"
+    "db:backfill-transaction-dates": "node scripts/backfill-transaction-dates.mjs",
+    "db:add-password-column": "node scripts/add-password-column.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
