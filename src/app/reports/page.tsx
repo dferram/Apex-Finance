@@ -53,7 +53,7 @@ export default function ReportsPage() {
         if (!cancelled) setReportReady(true);
       });
     return () => { cancelled = true; };
-  }, [activeWorkspace?.id, isInitializing, filterRange]);
+  }, [activeWorkspace, isInitializing, filterRange, refreshData]);
 
   // Insights Data
   const essentialRatio = useMemo(() => {

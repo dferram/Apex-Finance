@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { GET as getWorkspaces } from '@/app/api/workspaces/route';
 import { GET as getTransactions, POST as createTransaction } from '@/app/api/transactions/route';
 import { GET as getWallets, POST as createWallet } from '@/app/api/wallets/route';
@@ -6,7 +6,7 @@ import { NextRequest } from 'next/server';
 
 describe('REST API Routes (Unit/Integration Tests)', () => {
   
-  const createMockRequest = (url: string, body?: any) => {
+  const createMockRequest = (url: string, body?: unknown) => {
     return new NextRequest(new URL(url, 'http://localhost:3000'), {
       method: body ? 'POST' : 'GET',
       body: body ? JSON.stringify(body) : undefined,
@@ -15,8 +15,7 @@ describe('REST API Routes (Unit/Integration Tests)', () => {
 
   describe('GET /api/workspaces', () => {
     it('should return 200 and a list of workspaces', async () => {
-      const req = createMockRequest('/api/workspaces');
-      const res = await getWorkspaces(req);
+      const res = await getWorkspaces();
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(Array.isArray(data)).toBe(true);

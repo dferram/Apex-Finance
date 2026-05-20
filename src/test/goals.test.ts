@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { getFinancialGoals, createFinancialGoal, updateGoal, deleteGoal } from '@/app/actions';
 
 describe('Financial Goals Server Actions (Unit Tests)', () => {

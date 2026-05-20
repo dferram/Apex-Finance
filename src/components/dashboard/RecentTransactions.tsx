@@ -19,7 +19,7 @@ import { getTransactionsByDateRange } from "@/app/actions";
 import type { TransactionWithCategory } from "@/lib/schema";
 
 export function RecentTransactions() {
-  const { categories, activeWorkspace } = useApex();
+  const { activeWorkspace } = useApex();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [dayTransactions, setDayTransactions] = useState<TransactionWithCategory[]>([]);
   const [loading, setLoading] = useState(true);

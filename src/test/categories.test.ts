@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { getCategories, createCategory, getCategoriesHierarchical, updateCategory, deleteCategory } from '@/app/actions';
 
 describe('Categories Server Actions (Unit Tests)', () => {
