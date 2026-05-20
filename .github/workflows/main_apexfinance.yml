@@ -28,40 +28,22 @@ jobs:
           DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
           GOOGLE_AI_API_KEY: dummy_key_for_build
         run: |
-          npm install
+          npm ci
           npm run build --if-present
           npm run test --if-present
-
-      - name: Prepare standalone build
-        run: |
-          if [ -d ".next/standalone" ]; then
-            echo "Preparing standalone build..."
-            # Copy static files to standalone
-            cp -r .next/static .next/standalone/.next/
-            cp -r public .next/standalone/
-            # Copy server.js to standalone root
-            cp server.js .next/standalone/
-            cp package.json .next/standalone/
-            cp next.config.mjs .next/standalone/
-          fi
-        shell: bash
-
-      - name: Zip artifact for deployment
-        run: |
-          if [ -d ".next/standalone" ]; then
-            cd .next/standalone
-            zip -r ../../release.zip . -x "*.git*"
-            cd ../..
-          else
-            zip -r release.zip .next public package.json package-lock.json server.js next.config.mjs node_modules -x "*.git*"
-          fi
-        shell: bash
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: release.zip
+          path: |
+            .next/
+            public/
+            node_modules/
+            package.json
+            package-lock.json
+            server.js
+            next.config.mjs
 
   deploy:
     runs-on: ubuntu-latest
@@ -75,9 +57,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
-      
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
         
       - name: Login to Azure
         uses: azure/login@v2
