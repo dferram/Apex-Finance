@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { getWallets, createWallet, getWalletReport } from '@/app/actions';
 
 // Skip these tests as they require database connection

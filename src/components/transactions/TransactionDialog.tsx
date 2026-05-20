@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Plus } from "lucide-react";
 import { EXCHANGE_RATE_USD_MXN, roundCurrency } from "@/lib/utils";
  
 export function TransactionDialog({ children }: { children?: React.ReactNode }) {
@@ -49,6 +50,8 @@ export function TransactionDialog({ children }: { children?: React.ReactNode }) 
       ...newTxData,
       id: Math.random() * -1000,
       date: txDate,
+      created_at: new Date(),
+      wallet_id: walletId !== "none" ? Number(walletId) : null,
       category: categoriesHierarchical.find((c) => c.id === Number(categoryId)) || null,
     });
 

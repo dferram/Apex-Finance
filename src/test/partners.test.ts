@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { getPartners, createPartner, updatePartner, deletePartner } from '@/app/actions';
 
 describe('Partners Server Actions (Unit Tests)', () => {
@@ -24,7 +24,7 @@ describe('Partners Server Actions (Unit Tests)', () => {
     });
 
     it('should fail if name is missing', async () => {
-        // @ts-ignore
+        // @ts-expect-error - Testing invalid input
         const result = await createPartner({ workspace_id: 1, percentage: 50 });
         expect(result.success).toBe(false);
     });

@@ -13,10 +13,10 @@ const mockQuery = {
   orderBy: vi.fn().mockReturnThis(),
   limit: vi.fn().mockReturnThis(),
   leftJoin: vi.fn().mockReturnThis(),
-  then(onFulfilled: any) {
+  then(onFulfilled: (value: unknown[]) => unknown) {
     return Promise.resolve([]).then(onFulfilled);
   },
-  catch(onRejected: any) {
+  catch(onRejected: (reason: unknown) => unknown) {
     return Promise.resolve([]).catch(onRejected);
   },
 };

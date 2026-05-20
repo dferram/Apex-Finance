@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getWorkspaces } from '@/app/actions';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const workspaces = await getWorkspaces();
     return NextResponse.json(workspaces);
