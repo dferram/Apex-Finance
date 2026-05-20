@@ -120,6 +120,47 @@
   @apply bg-background/60 backdrop-blur-md border border-white/10 shadow-lg;
 }
 
+/* Workspace color utilities */
+.text-workspace {
+  color: hsl(var(--workspace-color));
+}
+
+.bg-workspace {
+  background-color: hsl(var(--workspace-color));
+}
+
+.bg-workspace\/10 {
+  background-color: hsl(var(--workspace-color) / 0.1);
+}
+
+.bg-workspace\/20 {
+  background-color: hsl(var(--workspace-color) / 0.2);
+}
+
+.bg-workspace\/50 {
+  background-color: hsl(var(--workspace-color) / 0.5);
+}
+
+.bg-workspace\/90 {
+  background-color: hsl(var(--workspace-color) / 0.9);
+}
+
+.border-workspace {
+  border-color: hsl(var(--workspace-color));
+}
+
+.border-workspace\/30 {
+  border-color: hsl(var(--workspace-color) / 0.3);
+}
+
+.border-workspace\/50 {
+  border-color: hsl(var(--workspace-color) / 0.5);
+}
+
+.ring-workspace\/50 {
+  --tw-ring-color: hsl(var(--workspace-color) / 0.5);
+}
+
 /* Base transitions */
 .transition-colors-all {
   @apply transition-colors duration-300 ease-in-out;
