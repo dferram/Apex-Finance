@@ -32,17 +32,25 @@ jobs:
           npm run build --if-present
           npm run test --if-present
 
+      - name: Zip artifact for deployment
+        run: |
+          if [ -d ".next/standalone" ]; then
+            cd .next/standalone
+            zip -r ../../release.zip .
+            cd ../..
+            cd .next/static
+            zip -r ../../release.zip . -g
+            cd ../..
+          else
+            zip -r release.zip .next public package.json package-lock.json server.js next.config.mjs node_modules
+          fi
+        shell: bash
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: |
-            .next/
-            public/
-            package.json
-            package-lock.json
-            server.js
-            next.config.mjs
+          path: release.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -57,9 +65,9 @@ jobs:
         with:
           name: node-app
       
-      - name: Install production dependencies
-        run: npm ci --omit=dev
-      
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
+        
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -74,4 +82,7 @@ jobs:
           app-name: 'apexfinance'
           slot-name: 'Production'
           package: .
+          startup-command: 'node server.js'
+        env:
+          SCM_DO_BUILD_DURING_DEPLOYMENT: false
           
