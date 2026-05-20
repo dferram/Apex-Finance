@@ -1,21 +1,9 @@
 "use client";
 
-import { useApex } from "@/context/ApexContext";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { Hexagon } from "lucide-react";
 
 export function Header() {
-  const { activeWorkspace, workspaces, switchWorkspace } = useApex();
-
-  const handleToggle = async (checked: boolean) => {
-    // True = Professional (xCore), False = Personal
-    const nextWorkspace = workspaces.find(w => w.is_professional === checked);
-    if (nextWorkspace && nextWorkspace.id !== activeWorkspace?.id) {
-      await switchWorkspace(nextWorkspace.id);
-    }
-  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors-all">
@@ -26,7 +14,8 @@ export function Header() {
         </div>
 
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <div className="flex items-center space-x-4 bg-muted/50 px-4 py-1.5 rounded-full border border-border/50">
+          {/* Switch Personal/xCore - Temporalmente oculto */}
+          {/* <div className="flex items-center space-x-4 bg-muted/50 px-4 py-1.5 rounded-full border border-border/50">
             <Label 
               htmlFor="workspace-mode" 
               className={`text-sm cursor-pointer transition-colors ${!activeWorkspace?.is_professional ? 'text-primary font-semibold' : 'text-muted-foreground'}`}
@@ -45,9 +34,9 @@ export function Header() {
             >
               xCore
             </Label>
-          </div>
+          </div> */}
           
-          <nav className="flex items-center space-x-4 ml-6 pl-6 border-l border-border">
+          <nav className="flex items-center space-x-4">
             <UserMenu />
           </nav>
         </div>
