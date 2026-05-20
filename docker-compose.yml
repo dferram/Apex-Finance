@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apex-finance-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - apex-network
+
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: apex-finance-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=apex_user
+      - POSTGRES_PASSWORD=apex_password
+      - POSTGRES_DB=apex_finance
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/backup.sql:/docker-entrypoint-initdb.d/backup.sql
+    restart: unless-stopped
+    networks:
+      - apex-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apex_user -d apex_finance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  apex-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

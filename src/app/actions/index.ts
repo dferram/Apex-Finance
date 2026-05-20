@@ -211,6 +211,7 @@ export async function getTransactionsByDateRange(
         id: transactions.id,
         workspace_id: transactions.workspace_id,
         category_id: transactions.category_id,
+        wallet_id: transactions.wallet_id,
         amount: transactions.amount,
         description: transactions.description,
         date: transactions.date,
@@ -234,8 +235,8 @@ export async function getTransactionsByDateRange(
       return {
         ...t,
         amount: Number(t.amount || 0),
-        date: dateVal != null ? (typeof dateVal === 'string' ? dateVal : (!Number.isNaN(new Date(dateVal).getTime()) ? new Date(dateVal).toISOString() : null)) : null,
-        created_at: createdVal != null ? (typeof createdVal === 'string' ? createdVal : (!Number.isNaN(new Date(createdVal).getTime()) ? new Date(createdVal).toISOString() : undefined)) : undefined,
+        date: dateVal != null ? (dateVal instanceof Date ? dateVal : new Date(dateVal)) : null,
+        created_at: createdVal != null ? (createdVal instanceof Date ? createdVal : new Date(createdVal)) : null,
       };
     }) as TransactionWithCategory[];
   } catch (error) {

@@ -41,7 +41,7 @@ export function ApexProvider({
   children: React.ReactNode;
   initialWorkspaces?: Workspace[];
 }) {
-  const [user] = useState<User>({ id: 1, name: 'User', email: 'user@example.com', created_at: new Date() });
+  const [user] = useState<User>({ id: 1, name: 'User', email: 'user@example.com', password: '', created_at: new Date() });
   const [workspaces] = useState<Workspace[]>(initialWorkspaces);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(initialWorkspaces[0] ?? null);
   const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);
