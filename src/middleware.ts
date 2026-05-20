@@ -14,7 +14,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isPublicPath && hasSession && pathname !== '/register') {
+  if (isPublicPath && hasSession && pathname === '/login') {
     const homeUrl = new URL('/', request.url);
     return NextResponse.redirect(homeUrl);
   }
