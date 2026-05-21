@@ -8,14 +8,14 @@ const genAI = new GoogleGenerativeAI(apiKey);
 // Log Gemini API status
 if (apiKey) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🤖 GEMINI AI API');
+  console.log('GEMINI AI API');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🔹 Status: Connected');
-  console.log('🔹 API Key: ' + apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 4));
-  console.log('🔹 Model: gemini-1.5-flash');
+  console.log('Status: Connected');
+  console.log('API Key: ' + apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 4));
+  console.log('Model: gemini-1.5-flash');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 } else {
-  console.log('⚠️  GOOGLE_AI_API_KEY not configured\n');
+  console.log('WARNING: GOOGLE_AI_API_KEY not configured\n');
 }
 
 interface Message {

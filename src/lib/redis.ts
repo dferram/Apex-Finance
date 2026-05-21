@@ -18,12 +18,12 @@ if (restUrl && restToken) {
     });
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔴 REDIS CONNECTION');
+    console.log('REDIS CONNECTION');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔹 Status: Connected');
-    console.log('🔹 Type: REST API');
-    console.log('🔹 Provider: Upstash');
-    console.log('🔹 URL:', restUrl.substring(0, 40) + '...');
+    console.log('Status: Connected');
+    console.log('Type: REST API');
+    console.log('Provider: Upstash');
+    console.log('URL:', restUrl.substring(0, 40) + '...');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   } catch (error) {
     console.error('❌ Redis REST API initialization error:', error);
@@ -46,12 +46,12 @@ if (restUrl && restToken) {
       });
 
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🔴 REDIS CONNECTION');
+      console.log('REDIS CONNECTION');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🔹 Status: Connected');
-      console.log('🔹 Type: REST API (from REDIS_URL)');
-      console.log('🔹 Provider: Upstash');
-      console.log('🔹 Host:', host);
+      console.log('Status: Connected');
+      console.log('Type: REST API (from REDIS_URL)');
+      console.log('Provider: Upstash');
+      console.log('Host:', host);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     } else {
       console.error('❌ Invalid REDIS_URL format. Expected: rediss://default:TOKEN@HOST:PORT');
@@ -62,7 +62,7 @@ if (restUrl && restToken) {
     redis = null;
   }
 } else {
-  console.log('⚠️  Redis not configured');
+  console.log('WARNING: Redis not configured');
   console.log('   Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN');
   console.log('   OR set REDIS_URL\n');
 }
@@ -74,20 +74,20 @@ export const cache = {
    */
   async get<T>(key: string): Promise<T | null> {
     if (!redis) {
-      console.log(`⚠️  Redis not available, skipping cache GET: ${key}`);
+      console.log(`[Redis] Not available, skipping cache GET: ${key}`);
       return null;
     }
 
     try {
       const value = await redis.get<T>(key);
       if (value) {
-        console.log(`✅ Cache HIT: ${key}`);
+        console.log(`[Cache] HIT: ${key}`);
       } else {
-        console.log(`❌ Cache MISS: ${key}`);
+        console.log(`[Cache] MISS: ${key}`);
       }
       return value;
     } catch (error) {
-      console.error(`❌ Redis GET error for key ${key}:`, error);
+      console.error(`[Redis] GET error for key ${key}:`, error);
       return null;
     }
   },
@@ -97,21 +97,21 @@ export const cache = {
    */
   async set<T>(key: string, value: T, ttl?: number): Promise<boolean> {
     if (!redis) {
-      console.log(`⚠️  Redis not available, skipping cache SET: ${key}`);
+      console.log(`[Redis] Not available, skipping cache SET: ${key}`);
       return false;
     }
 
     try {
       if (ttl) {
         await redis.setex(key, ttl, JSON.stringify(value));
-        console.log(`✅ Cache SET: ${key} (TTL: ${ttl}s)`);
+        console.log(`[Cache] SET: ${key} (TTL: ${ttl}s)`);
       } else {
         await redis.set(key, JSON.stringify(value));
-        console.log(`✅ Cache SET: ${key} (no TTL)`);
+        console.log(`[Cache] SET: ${key} (no TTL)`);
       }
       return true;
     } catch (error) {
-      console.error(`❌ Redis SET error for key ${key}:`, error);
+      console.error(`[Redis] SET error for key ${key}:`, error);
       return false;
     }
   },
@@ -121,16 +121,16 @@ export const cache = {
    */
   async del(key: string): Promise<boolean> {
     if (!redis) {
-      console.log(`⚠️  Redis not available, skipping cache DEL: ${key}`);
+      console.log(`[Redis] Not available, skipping cache DEL: ${key}`);
       return false;
     }
 
     try {
       await redis.del(key);
-      console.log(`✅ Cache DEL: ${key}`);
+      console.log(`[Cache] DEL: ${key}`);
       return true;
     } catch (error) {
-      console.error(`❌ Redis DEL error for key ${key}:`, error);
+      console.error(`[Redis] DEL error for key ${key}:`, error);
       return false;
     }
   },
@@ -140,7 +140,7 @@ export const cache = {
    */
   async delPattern(pattern: string): Promise<number> {
     if (!redis) {
-      console.log(`⚠️  Redis not available, skipping cache DEL pattern: ${pattern}`);
+      console.log(`[Redis] Not available, skipping cache DEL pattern: ${pattern}`);
       return 0;
     }
 
@@ -148,12 +148,12 @@ export const cache = {
       const keys = await redis.keys(pattern);
       if (keys.length > 0) {
         await redis.del(...keys);
-        console.log(`✅ Cache DEL pattern: ${pattern} (${keys.length} keys)`);
+        console.log(`[Cache] DEL pattern: ${pattern} (${keys.length} keys)`);
         return keys.length;
       }
       return 0;
     } catch (error) {
-      console.error(`❌ Redis DEL pattern error for ${pattern}:`, error);
+      console.error(`[Redis] DEL pattern error for ${pattern}:`, error);
       return 0;
     }
   },
