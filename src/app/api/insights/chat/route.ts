@@ -12,7 +12,7 @@ if (apiKey) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('Status: Connected');
   console.log('API Key: ' + apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 4));
-  console.log('Model: gemini-1.5-flash');
+  console.log('Model: gemini-pro');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 } else {
   console.log('WARNING: GOOGLE_AI_API_KEY not configured\n');
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
     // System prompt para Apex AI
     const systemPrompt = `Eres "Apex AI", un asesor financiero profesional, directo y analítico integrado en Apex Finance.
