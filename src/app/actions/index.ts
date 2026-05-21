@@ -634,6 +634,19 @@ export async function createTransaction(data: CreateTransactionData) {
 
 export async function getApexStats(workspaceId: number) {
   try {
+    // Get all wallets for this workspace
+    const workspaceWallets = await db
+      .select({
+        balance: wallets.balance,
+      })
+      .from(wallets)
+      .where(eq(wallets.workspace_id, workspaceId));
+
+    // Calculate total wallet balance (this already includes transactions)
+    const totalWalletBalance = workspaceWallets.reduce((sum, w) => {
+      return roundCurrency(sum + Number(w.balance || 0));
+    }, 0);
+
     const txs = await db
       .select({
         amount: transactions.amount,
@@ -650,7 +663,8 @@ export async function getApexStats(workspaceId: number) {
       else totalExpense = roundCurrency(totalExpense + Math.abs(val));
     }
     
-    const totalBalance = roundCurrency(totalIncome - totalExpense);
+    // Use wallet balance as the real balance (it includes initial balance + transactions)
+    const totalBalance = totalWalletBalance;
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
