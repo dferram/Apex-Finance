@@ -93,7 +93,7 @@ export function GeminiChat() {
       const decoder = new TextDecoder();
       let assistantMessage = '';
 
-      // Crear mensaje del asistente vacío
+      // Create empty assistant message
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
       if (reader) {
@@ -177,7 +177,7 @@ export function GeminiChat() {
               <Sparkles className="h-8 w-8 text-purple-500" />
             </div>
             <div>
-              <h4 className="font-semibold text-lg mb-1">Hello! I'm Apex AI 👋</h4>
+              <h4 className="font-semibold text-lg mb-1">Hello! I&apos;m Apex AI 👋</h4>
               <p className="text-sm text-muted-foreground max-w-md">
                 Your personal financial advisor. I can help you analyze your expenses, 
                 optimize your budget, and achieve your financial goals.
