@@ -44,18 +44,26 @@ jobs:
             exit 1
           fi
 
+      - name: Create deployment package
+        run: |
+          echo "Creating deployment package..."
+          mkdir -p deploy
+          cp -r .next deploy/
+          cp -r public deploy/
+          cp -r node_modules deploy/
+          cp package.json deploy/
+          cp package-lock.json deploy/
+          cp server.js deploy/
+          cp next.config.mjs deploy/
+          echo "Package contents:"
+          ls -la deploy/
+          ls -la deploy/.next/
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: |
-            .next
-            public
-            node_modules
-            package.json
-            package-lock.json
-            server.js
-            next.config.mjs
+          path: deploy/
 
   deploy:
     runs-on: ubuntu-latest
