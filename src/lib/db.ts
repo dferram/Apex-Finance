@@ -5,13 +5,16 @@ import * as schema from '@/lib/schema';
 // Database connection string from environment variables
 const connectionString = process.env.DATABASE_URL;
 
+// Fix SSL mode for Azure (use verify-full instead of require)
+const fixedConnectionString = connectionString?.replace('sslmode=require', 'sslmode=verify-full');
+
 // Configure pool for Azure PostgreSQL or local development
 // Optimized settings for faster connections
-const pool = connectionString 
+const pool = fixedConnectionString 
   ? new Pool({ 
-      connectionString,
+      connectionString: fixedConnectionString,
       // Azure PostgreSQL requires SSL
-      ssl: connectionString.includes('azure.com') 
+      ssl: fixedConnectionString.includes('azure.com') 
         ? { rejectUnauthorized: false }
         : false,
       // Optimized connection pool settings
@@ -29,15 +32,36 @@ const pool = connectionString
       max: 0,
     });
 
-// Log connection info (without sensitive data)
-if (connectionString && process.env.NODE_ENV !== 'production') {
-  const host = connectionString.includes('azure.com') ? 'Azure PostgreSQL' : 'Local PostgreSQL';
-  console.log(`📊 Database: Connected to ${host}`);
+// Detailed logging for database connection
+if (fixedConnectionString) {
+  const isAzure = fixedConnectionString.includes('azure.com');
+  const url = new URL(fixedConnectionString.replace('postgresql://', 'http://'));
+  
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📊 DATABASE CONNECTION');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`🔹 Type: ${isAzure ? 'Azure PostgreSQL' : 'Local PostgreSQL'}`);
+  console.log(`🔹 Host: ${url.hostname}`);
+  console.log(`🔹 Port: ${url.port || '5432'}`);
+  console.log(`� Database: ${url.pathname.slice(1)}`);
+  console.log(`🔹 User: ${url.username}`);
+  console.log(`🔹 SSL: ${isAzure ? 'Enabled (verify-full)' : 'Disabled'}`);
+  console.log(`🔹 Pool: min=${pool.options.min}, max=${pool.options.max}`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+} else {
+  console.log('⚠️  DATABASE_URL not configured (build mode)\n');
 }
 
 // Handle pool errors
 pool.on('error', (err) => {
-  console.error('Unexpected database pool error:', err);
+  console.error('❌ Unexpected database pool error:', err.message);
+});
+
+// Handle successful connections
+pool.on('connect', () => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✅ Database connection established');
+  }
 });
 
 export const db = drizzle(pool, { schema });
