@@ -1,11 +1,34 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
+import { insightsRateLimiter, getClientIdentifier } from '@/lib/rateLimiter';
 
 const apiKey = process.env.GOOGLE_AI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit
+    const clientId = getClientIdentifier(request);
+    const rateLimitResult = insightsRateLimiter.check(clientId);
+
+    if (!rateLimitResult.allowed) {
+      const resetIn = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded. Please try again later.',
+          resetIn,
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '10',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const {
       isProfessional,

@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { chatRateLimiter, getClientIdentifier } from '@/lib/rateLimiter';
 
 // Initialize Gemini AI with logging
 const apiKey = process.env.GOOGLE_AI_API_KEY || '';
@@ -37,6 +38,28 @@ interface FinancialContext {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check rate limit
+    const clientId = getClientIdentifier(req);
+    const rateLimitResult = chatRateLimiter.check(clientId);
+
+    if (!rateLimitResult.allowed) {
+      const resetIn = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded. Please try again later.',
+          resetIn,
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '20',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+          },
+        }
+      );
+    }
+
     const { messages, context } = await req.json() as {
       messages: Message[];
       context: FinancialContext;
