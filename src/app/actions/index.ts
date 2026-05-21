@@ -620,8 +620,14 @@ export async function createTransaction(data: CreateTransactionData) {
         })
         .where(eq(wallets.id, data.wallet_id));
       
-      // Invalidate wallet cache
-      await cache.delPattern(`wallets:workspace:*`);
+      // Invalidate wallet and stats cache
+      await Promise.all([
+        cache.delPattern(`wallets:workspace:*`),
+        cache.delPattern(`stats:workspace:*`)
+      ]);
+    } else {
+      // Invalidate stats cache even if no wallet
+      await cache.delPattern(`stats:workspace:*`);
     }
 
     revalidatePath('/');
@@ -633,63 +639,65 @@ export async function createTransaction(data: CreateTransactionData) {
 }
 
 export async function getApexStats(workspaceId: number) {
+  const cacheKey = `stats:workspace:${workspaceId}`;
+  
   try {
-    // Get all wallets for this workspace
-    const workspaceWallets = await db
-      .select({
-        balance: wallets.balance,
-      })
-      .from(wallets)
-      .where(eq(wallets.workspace_id, workspaceId));
-
-    // Calculate total wallet balance (this already includes transactions)
-    const totalWalletBalance = workspaceWallets.reduce((sum, w) => {
-      return roundCurrency(sum + Number(w.balance || 0));
-    }, 0);
-
-    const txs = await db
-      .select({
-        amount: transactions.amount,
-      })
-      .from(transactions)
-      .where(eq(transactions.workspace_id, workspaceId));
-
-    let totalIncome = 0;
-    let totalExpense = 0;
-
-    for (const tx of txs) {
-      const val = Number(tx.amount || 0);
-      if (val > 0) totalIncome = roundCurrency(totalIncome + val);
-      else totalExpense = roundCurrency(totalExpense + Math.abs(val));
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      return cached as { totalBalance: number; weeklyExpense: number; totalIncome: number; totalExpense: number };
     }
-    
-    // Use wallet balance as the real balance (it includes initial balance + transactions)
-    const totalBalance = totalWalletBalance;
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const weeklyExpensesResult = await db
-      .select({
-        total: sum(sql`CAST(${transactions.amount} AS NUMERIC)`),
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.workspace_id, workspaceId),
-          sql`CAST(${transactions.amount} AS NUMERIC) < 0`,
-          gte(transactions.date, sevenDaysAgo)
+    // Single optimized query to get all stats at once
+    const [walletsData, txsData, weeklyData] = await Promise.all([
+      db.select({ balance: wallets.balance })
+        .from(wallets)
+        .where(eq(wallets.workspace_id, workspaceId)),
+      
+      db.select({ amount: transactions.amount })
+        .from(transactions)
+        .where(eq(transactions.workspace_id, workspaceId)),
+      
+      db.select({ total: sum(sql`CAST(${transactions.amount} AS NUMERIC)`) })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.workspace_id, workspaceId),
+            sql`CAST(${transactions.amount} AS NUMERIC) < 0`,
+            gte(transactions.date, sevenDaysAgo)
+          )
         )
-      );
+    ]);
 
-    const weeklyExpense = Math.abs(Number(weeklyExpensesResult[0]?.total || 0));
+    // Calculate total wallet balance
+    const totalBalance = walletsData.reduce((sum, w) => {
+      return roundCurrency(sum + Number(w.balance || 0));
+    }, 0);
 
-    return {
+    // Calculate income and expenses
+    let totalIncome = 0;
+    let totalExpense = 0;
+    for (const tx of txsData) {
+      const val = Number(tx.amount || 0);
+      if (val > 0) totalIncome = roundCurrency(totalIncome + val);
+      else totalExpense = roundCurrency(totalExpense + Math.abs(val));
+    }
+
+    const weeklyExpense = Math.abs(Number(weeklyData[0]?.total || 0));
+
+    const result = {
       totalBalance,
       weeklyExpense,
       totalIncome,
       totalExpense
     };
+
+    // Cache for 2 minutes (shorter than other data since it changes frequently)
+    await cache.set(cacheKey, result, 120);
+
+    return result;
   } catch (error) {
     console.error('Error calculating Apex Stats:', error);
     return {

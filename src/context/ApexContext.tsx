@@ -79,15 +79,18 @@ export function ApexProvider({
     }
 
     try {
-      const [txs, newStats, newCats, newCatsHier, newTotals, newGoals, newWallets] = await Promise.all([
+      // Load data in parallel - stats will be calculated from wallets
+      const [txs, newCats, newCatsHier, newTotals, newGoals, newWallets] = await Promise.all([
         getTransactions(workspaceId),
-        getApexStats(workspaceId),
         getCategories(workspaceId),
         getCategoriesHierarchical(workspaceId),
         getCategoryTotalsHierarchical(workspaceId),
         getFinancialGoals(user.id),
         getWallets(workspaceId)
       ]);
+      
+      // Calculate stats from loaded data (faster than separate query)
+      const newStats = await getApexStats(workspaceId);
       
       const data = { txs, stats: newStats, cats: newCats, catsHier: newCatsHier, totals: newTotals, goals: newGoals, wallets: newWallets };
       dataCache.current.set(workspaceId, { timestamp: now, data });
