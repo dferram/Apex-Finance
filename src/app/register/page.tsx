@@ -32,20 +32,20 @@ export default function RegisterPage() {
     const newErrors: Record<string, string> = {};
 
     if (formData.name.length < 2) {
-      newErrors.name = 'El nombre debe tener al menos 2 caracteres';
+      newErrors.name = 'Name must be at least 2 characters';
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      newErrors.email = 'Email inválido';
+      newErrors.email = 'Invalid email';
     }
 
     if (formData.password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+      newErrors.password = 'Password must be at least 6 characters';
     }
 
     if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Las contraseñas no coinciden';
+      newErrors.confirmPassword = 'Passwords do not match';
     }
 
     setErrors(newErrors);
@@ -83,14 +83,14 @@ export default function RegisterPage() {
           });
           setErrors(fieldErrors);
         }
-        setGeneralError(data.error || 'Error al registrarse');
+        setGeneralError(data.error || 'Registration error');
         return;
       }
 
       router.push('/');
       router.refresh();
     } catch {
-      setGeneralError('Error de conexión. Por favor, intenta de nuevo.');
+      setGeneralError('Connection error. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -99,9 +99,9 @@ export default function RegisterPage() {
   const passwordStrength = () => {
     const password = formData.password;
     if (password.length === 0) return { strength: 0, label: '', color: '' };
-    if (password.length < 6) return { strength: 1, label: 'Débil', color: 'text-red-500' };
-    if (password.length < 10) return { strength: 2, label: 'Media', color: 'text-yellow-500' };
-    return { strength: 3, label: 'Fuerte', color: 'text-green-500' };
+    if (password.length < 6) return { strength: 1, label: 'Weak', color: 'text-red-500' };
+    if (password.length < 10) return { strength: 2, label: 'Medium', color: 'text-yellow-500' };
+    return { strength: 3, label: 'Strong', color: 'text-green-500' };
   };
 
   const strength = passwordStrength();
@@ -111,21 +111,21 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Apex Finance</h1>
-          <p className="text-slate-400">Crea tu cuenta y comienza a gestionar tus finanzas</p>
+          <p className="text-slate-400">Create your account and start managing your finances</p>
         </div>
 
         <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-white">Crear Cuenta</CardTitle>
+            <CardTitle className="text-2xl text-white">Create Account</CardTitle>
             <CardDescription className="text-slate-400">
-              Ingresa tus datos para registrarte
+              Enter your details to register
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-slate-200">
-                  Nombre Completo
+                  Full Name
                 </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -181,7 +181,7 @@ export default function RegisterPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-slate-200">
-                  Contraseña
+                  Password
                 </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -227,7 +227,7 @@ export default function RegisterPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-slate-200">
-                  Confirmar Contraseña
+                  Confirm Password
                 </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -269,15 +269,15 @@ export default function RegisterPage() {
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={isLoading}
               >
-                {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+                {isLoading ? 'Creating account...' : 'Create Account'}
               </Button>
             </form>
 
             <div className="mt-4 text-center">
               <p className="text-sm text-slate-400">
-                ¿Ya tienes cuenta?{' '}
+                Already have an account?{' '}
                 <a href="/login" className="text-blue-500 hover:text-blue-400 font-medium">
-                  Inicia sesión aquí
+                  Sign in here
                 </a>
               </p>
             </div>
@@ -285,7 +285,7 @@ export default function RegisterPage() {
         </Card>
 
         <p className="text-center text-slate-500 text-sm mt-6">
-          © 2024 Apex Finance. Todos los derechos reservados.
+          © 2024 Apex Finance. All rights reserved.
         </p>
       </div>
     </div>

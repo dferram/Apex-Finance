@@ -135,7 +135,7 @@ export function GeminiChat() {
         ...prev,
         {
           role: 'assistant',
-          content: 'Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta de nuevo.',
+          content: 'Sorry, there was an error processing your message. Please try again.',
         },
       ]);
     } finally {
@@ -160,7 +160,7 @@ export function GeminiChat() {
           </div>
           <div>
             <h3 className="font-semibold text-sm">Apex AI</h3>
-            <p className="text-xs text-muted-foreground">Asesor Financiero</p>
+            <p className="text-xs text-muted-foreground">Financial Advisor</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 border border-border/30">
@@ -177,10 +177,10 @@ export function GeminiChat() {
               <Sparkles className="h-8 w-8 text-purple-500" />
             </div>
             <div>
-              <h4 className="font-semibold text-lg mb-1">¡Hola! Soy Apex AI 👋</h4>
+              <h4 className="font-semibold text-lg mb-1">Hello! I'm Apex AI 👋</h4>
               <p className="text-sm text-muted-foreground max-w-md">
-                Tu asesor financiero personal. Puedo ayudarte a analizar tus gastos, 
-                optimizar tu presupuesto y alcanzar tus metas financieras.
+                Your personal financial advisor. I can help you analyze your expenses, 
+                optimize your budget, and achieve your financial goals.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 justify-center mt-4">
@@ -189,33 +189,33 @@ export function GeminiChat() {
                 size="sm"
                 className="text-xs"
                 onClick={() => {
-                  setInput('¿Cómo puedo mejorar mi Apex Score?');
+                  setInput('How can I improve my Apex Score?');
                   inputRef.current?.focus();
                 }}
               >
-                ¿Cómo mejorar mi score?
+                How to improve my score?
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-xs"
                 onClick={() => {
-                  setInput('Analiza mis gastos del último mes');
+                  setInput('Analyze my expenses from last month');
                   inputRef.current?.focus();
                 }}
               >
-                Analizar gastos
+                Analyze expenses
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-xs"
                 onClick={() => {
-                  setInput('Dame consejos para ahorrar más');
+                  setInput('Give me tips to save more money');
                   inputRef.current?.focus();
                 }}
               >
-                Consejos de ahorro
+                Savings tips
               </Button>
             </div>
           </div>

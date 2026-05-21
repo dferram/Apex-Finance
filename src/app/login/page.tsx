@@ -32,14 +32,14 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Error al iniciar sesión');
+        setError(data.error || 'Login error');
         return;
       }
 
       router.push('/');
       router.refresh();
     } catch {
-      setError('Error de conexión. Por favor, intenta de nuevo.');
+      setError('Connection error. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -55,9 +55,9 @@ export default function LoginPage() {
 
         <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-white">Iniciar Sesión</CardTitle>
+            <CardTitle className="text-2xl text-white">Sign In</CardTitle>
             <CardDescription className="text-slate-400">
-              Ingresa tus credenciales para acceder
+              Enter your credentials to access
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -112,15 +112,15 @@ export default function LoginPage() {
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={isLoading}
               >
-                {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
 
             <div className="mt-4 text-center">
               <p className="text-sm text-slate-400">
-                ¿No tienes cuenta?{' '}
+                Don&apos;t have an account?{' '}
                 <a href="/register" className="text-blue-500 hover:text-blue-400 font-medium">
-                  Regístrate aquí
+                  Register here
                 </a>
               </p>
             </div>
@@ -128,7 +128,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center text-slate-500 text-sm mt-6">
-          © 2024 Apex Finance. Todos los derechos reservados.
+          © 2024 Apex Finance. All rights reserved.
         </p>
       </div>
     </div>

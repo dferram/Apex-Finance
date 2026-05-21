@@ -88,10 +88,10 @@ export default function CategoriesPage() {
                 <div>
                    <CardTitle className="text-xl flex items-center gap-2">
                      <Target className="h-5 w-5 text-workspace" />
-                     Arquitectura de Gastos
+                     Expense Architecture
                    </CardTitle>
                    <CardDescription className="mt-1">
-                     Visualización en tiempo real. Arrastra y suelta para reorganizar la jerarquía.
+                     Real-time visualization. Drag and drop to reorganize the hierarchy.
                    </CardDescription>
                 </div>
              </div>
