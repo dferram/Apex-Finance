@@ -1,5 +1,26 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { getFinancialGoals, createFinancialGoal, updateGoal, deleteGoal } from '@/app/actions';
+import { db } from '@/lib/db';
+
+/**
+ * Helper: creates a chainable mock query that resolves to `data`.
+ * Used to override db.select() for specific tests via mockReturnValueOnce.
+ */
+function mockSelectResult(data: unknown[]) {
+  return {
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    leftJoin: vi.fn().mockReturnThis(),
+    then(onFulfilled: (value: unknown[]) => unknown) {
+      return Promise.resolve(data).then(onFulfilled);
+    },
+    catch(onRejected: (reason: unknown) => unknown) {
+      return Promise.resolve(data).catch(onRejected);
+    },
+  };
+}
 
 describe('Financial Goals Server Actions (Unit Tests)', () => {
   
@@ -26,6 +47,8 @@ describe('Financial Goals Server Actions (Unit Tests)', () => {
 
   describe('updateGoal', () => {
     it('should update progress on a goal', async () => {
+      // Return an existing goal owned by user 1 for the ownership check
+      vi.mocked(db.select).mockReturnValueOnce(mockSelectResult([{ user_id: 1 }]) as any);
       const result = await updateGoal(1, { current_amount: 5000 });
       expect(result.success).toBe(true);
     });
@@ -33,6 +56,8 @@ describe('Financial Goals Server Actions (Unit Tests)', () => {
 
   describe('deleteGoal', () => {
     it('should remove a goal record', async () => {
+      // Return an existing goal owned by user 1 for the ownership check
+      vi.mocked(db.select).mockReturnValueOnce(mockSelectResult([{ user_id: 1 }]) as any);
       const result = await deleteGoal(1);
       expect(result.success).toBe(true);
     });

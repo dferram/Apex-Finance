@@ -61,3 +61,21 @@ vi.mock('@/lib/db', () => ({
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
+
+// Mock auth module – return a valid session so goal actions pass auth checks
+vi.mock('@/lib/auth', () => ({
+  getSession: vi.fn(() => Promise.resolve({ userId: 1, token: 'test-token' })),
+  getCurrentUser: vi.fn(() => Promise.resolve({ id: 1, name: 'Test', email: 'test@test.com' })),
+}));
+
+// Mock Redis cache – no-op in tests
+vi.mock('@/lib/redis', () => ({
+  cache: {
+    get: vi.fn(() => Promise.resolve(null)),
+    set: vi.fn(() => Promise.resolve(true)),
+    del: vi.fn(() => Promise.resolve(true)),
+    delPattern: vi.fn(() => Promise.resolve(0)),
+    isAvailable: vi.fn(() => false),
+  },
+  redis: null,
+}));
