@@ -1,32 +1,55 @@
 import { Redis } from '@upstash/redis';
 
 // Redis configuration from Upstash
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+// Supports both REST API and Redis protocol
+const restUrl = process.env.UPSTASH_REDIS_REST_URL;
+const restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const redisUrl = process.env.REDIS_URL;
 
 // Initialize Redis client
 let redis: Redis | null = null;
 
-if (redisUrl && redisToken) {
+if (restUrl && restToken) {
+  // REST API connection (recommended for serverless)
   try {
     redis = new Redis({
-      url: redisUrl,
-      token: redisToken,
+      url: restUrl,
+      token: restToken,
     });
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🔴 REDIS CONNECTION');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🔹 Status: Connected');
+    console.log('🔹 Type: REST API');
+    console.log('🔹 Provider: Upstash');
+    console.log('🔹 URL:', restUrl.substring(0, 40) + '...');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  } catch (error) {
+    console.error('❌ Redis REST API initialization error:', error);
+    redis = null;
+  }
+} else if (redisUrl) {
+  // Redis protocol connection (rediss://)
+  try {
+    redis = Redis.fromEnv();
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔴 REDIS CONNECTION');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔹 Status: Connected');
+    console.log('🔹 Type: Redis Protocol');
     console.log('🔹 Provider: Upstash');
     console.log('🔹 URL:', redisUrl.substring(0, 30) + '...');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   } catch (error) {
-    console.error('❌ Redis initialization error:', error);
+    console.error('❌ Redis protocol initialization error:', error);
     redis = null;
   }
 } else {
-  console.log('⚠️  Redis not configured (UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN missing)\n');
+  console.log('⚠️  Redis not configured');
+  console.log('   Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN');
+  console.log('   OR set REDIS_URL\n');
 }
 
 // Cache helper functions

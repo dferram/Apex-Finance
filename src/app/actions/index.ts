@@ -13,6 +13,14 @@ export interface CategoryNode extends Category {
   level: number;
 }
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // Helper to invalidate cache
 async function invalidateCache(patterns: string[]) {
   for (const pattern of patterns) {
@@ -135,42 +143,56 @@ export async function getCategoryTotalsHierarchical(workspaceId: number) {
 }
 
 export async function getTransactions(workspaceId: number, limit?: number) {
+  const cacheKey = `transactions:workspace:${workspaceId}:limit:${limit || 'all'}`;
+  
   try {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`🔴 Using Redis cache for transactions (workspace ${workspaceId})`);
+      return cached as TransactionWithCategory[];
+    }
+
+    console.log(`📊 Fetching transactions from database (workspace ${workspaceId})`);
     const baseQuery = db
       .select({
         id: transactions.id,
         workspace_id: transactions.workspace_id,
         category_id: transactions.category_id,
+        wallet_id: transactions.wallet_id,
         amount: transactions.amount,
         description: transactions.description,
         date: transactions.date,
         is_essential: transactions.is_essential,
-        category: categories,
+        created_at: transactions.created_at,
+        category: {
+          id: categories.id,
+          name: categories.name,
+          workspace_id: categories.workspace_id,
+          parent_id: categories.parent_id,
+          monthly_budget: categories.monthly_budget,
+          is_project: categories.is_project,
+        },
       })
       .from(transactions)
       .leftJoin(categories, eq(transactions.category_id, categories.id))
       .where(eq(transactions.workspace_id, workspaceId))
       .orderBy(desc(transactions.date), desc(transactions.id));
-    
-    const data = limit ? await baseQuery.limit(limit) : await baseQuery.limit(500);
-      
-    return data.map(t => ({
-      ...t,
-      amount: roundCurrency(Number(t.amount || 0)),
-      date: t.date != null ? (typeof t.date === 'string' ? t.date : (!Number.isNaN(new Date(t.date).getTime()) ? new Date(t.date).toISOString() : null)) : null,
+
+    const data = limit ? await baseQuery.limit(limit) : await baseQuery;
+
+    const result = data.map(row => ({
+      ...row,
+      amount: parseFloat(row.amount),
+      date: row.date ? new Date(row.date) : new Date(),
+      created_at: row.created_at ? new Date(row.created_at) : null,
     })) as TransactionWithCategory[];
+    
+    await cache.set(cacheKey, result, 180); // 3 minutes
+    return result;
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return [];
   }
-}
-
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 }
 
 export async function getTransactionsPaginated(
@@ -689,6 +711,7 @@ export async function createFinancialGoal(data: { user_id: number; name: string;
     }).returning();
     revalidatePath('/goals');
     revalidatePath('/');
+    revalidatePath('/admin');
     return { success: true, goal };
   } catch (error) {
     console.error('Error creating goal:', error);
@@ -697,13 +720,25 @@ export async function createFinancialGoal(data: { user_id: number; name: string;
 }
 
 export async function getFinancialGoals(userId: number) {
+  const cacheKey = `goals:user:${userId}`;
+  
   try {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`🔴 Using Redis cache for goals (user ${userId})`);
+      return cached as GoalWithNumbers[];
+    }
+
+    console.log(`📊 Fetching goals from database (user ${userId})`);
     const data = await db.select().from(financial_goals).where(eq(financial_goals.user_id, userId));
-    return data.map(g => ({
+    const result = data.map(g => ({
       ...g,
       target_amount: Number(g.target_amount || 0),
       current_amount: Number(g.current_amount || 0),
     })) as GoalWithNumbers[];
+    
+    await cache.set(cacheKey, result, 300); // 5 minutes
+    return result;
   } catch (error) {
     console.error('Error fetching goals:', error);
     return [];
@@ -866,8 +901,19 @@ export async function deleteGoal(id: number): Promise<{ success: boolean; error?
 
 // Partners CRUD
 export async function getPartners(workspaceId: number) {
+  const cacheKey = `partners:workspace:${workspaceId}`;
+  
   try {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`🔴 Using Redis cache for partners (workspace ${workspaceId})`);
+      return cached as typeof partners.$inferSelect[];
+    }
+
+    console.log(`📊 Fetching partners from database (workspace ${workspaceId})`);
     const data = await db.select().from(partners).where(eq(partners.workspace_id, workspaceId)).orderBy(desc(partners.percentage));
+    
+    await cache.set(cacheKey, data, 300); // 5 minutes
     return data;
   } catch (error) {
     console.error('Error fetching partners:', error);
@@ -978,11 +1024,19 @@ export async function updateWorkspace(
 import { wallets, budgets } from '@/lib/schema';
 
 export async function getWallets(workspaceId: number) {
+  const cacheKey = `wallets:workspace:${workspaceId}`;
+  
   try {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`🔴 Using Redis cache for wallets (workspace ${workspaceId})`);
+      return cached as typeof wallets.$inferSelect[];
+    }
+
+    console.log(`📊 Fetching wallets from database (workspace ${workspaceId})`);
     const data = await db.select().from(wallets).where(eq(wallets.workspace_id, workspaceId)).orderBy(desc(wallets.created_at));
-    // Calculate current balance based on transactions? 
-    // Actually the wallet has a "balance" field, but if we want true balance we can sum transactions. 
-    // For now we return the wallets.
+    
+    await cache.set(cacheKey, data, 300); // 5 minutes
     return data;
   } catch (error) {
     console.error('Error fetching wallets:', error);
