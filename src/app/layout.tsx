@@ -30,6 +30,7 @@ export default async function RootLayout({
         {user ? (
           <ApexProvider 
             initialWorkspaces={workspaces}
+            initialUser={user}
           >
             <div className="relative flex min-h-screen flex-col">
               <Header />

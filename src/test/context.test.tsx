@@ -31,8 +31,10 @@ describe.skip('ApexContext (Requires React 19 useOptimistic)', () => {
     { id: 2, name: 'Professional', is_professional: true, user_id: 1, currency: 'USD', created_at: new Date() },
   ];
 
+  const mockUser = { id: 1, name: 'Test User', email: 'test@example.com', created_at: new Date() };
+
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <ApexProvider initialWorkspaces={mockWorkspaces}>
+    <ApexProvider initialWorkspaces={mockWorkspaces} initialUser={mockUser}>
       {children}
     </ApexProvider>
   );

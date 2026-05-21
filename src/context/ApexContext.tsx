@@ -37,11 +37,13 @@ const ApexContext = createContext<ApexContextType | undefined>(undefined);
 export function ApexProvider({ 
   children,
   initialWorkspaces = [],
+  initialUser,
 }: { 
   children: React.ReactNode;
   initialWorkspaces?: Workspace[];
+  initialUser: { id: number; name: string; email: string; created_at: Date | null };
 }) {
-  const [user] = useState<User>({ id: 1, name: 'User', email: 'user@example.com', password: '', created_at: new Date() });
+  const [user] = useState<User>({ ...initialUser, password: '', created_at: initialUser.created_at ?? new Date() });
   const [workspaces] = useState<Workspace[]>(initialWorkspaces);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(initialWorkspaces[0] ?? null);
   const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);

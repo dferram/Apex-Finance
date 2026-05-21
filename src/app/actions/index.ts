@@ -7,6 +7,7 @@ import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { transactionSchema, goalSchema, categorySchema, partnerSchema } from '@/lib/validations';
 import { roundCurrency } from '@/lib/utils';
+import { getSession } from '@/lib/auth';
 
 export interface CategoryNode extends Category {
   full_path: string;
@@ -29,15 +30,20 @@ async function invalidateCache(patterns: string[]) {
 }
 
 export async function getWorkspaces() {
-  const cacheKey = 'workspaces:all';
-  
   try {
+    const session = await getSession();
+    if (!session) {
+      return [];
+    }
+    
+    const cacheKey = `workspaces:user:${session.userId}`;
+    
     // Try to get from cache first
     const cached = await cache.get(cacheKey);
     if (cached) {
       return cached as typeof workspaces.$inferSelect[];
     }
-    const data = await db.select().from(workspaces).orderBy(workspaces.is_professional, desc(workspaces.id));
+    const data = await db.select().from(workspaces).where(eq(workspaces.user_id, session.userId)).orderBy(workspaces.is_professional, desc(workspaces.id));
     
     // Cache for 5 minutes
     await cache.set(cacheKey, data, 300);
@@ -745,6 +751,12 @@ export async function createCategory(data: { workspace_id: number; name: string;
 
 export async function createFinancialGoal(data: { user_id: number; name: string; target_amount: number; deadline?: Date }) {
   try {
+    // Verify the session user matches the requested user_id
+    const session = await getSession();
+    if (!session || session.userId !== data.user_id) {
+      return { success: false, error: 'Unauthorized: Cannot create goals for another user' };
+    }
+
     // Validate input with Zod schema (workspace_id not needed for goals, use user_id as placeholder)
     const validation = goalSchema.safeParse({
       workspace_id: data.user_id, // goalSchema requires workspace_id, reuse user_id for validation
@@ -776,9 +788,15 @@ export async function createFinancialGoal(data: { user_id: number; name: string;
 }
 
 export async function getFinancialGoals(userId: number) {
-  const cacheKey = `goals:user:${userId}`;
-  
   try {
+    // Verify the session user matches the requested userId
+    const session = await getSession();
+    if (!session || session.userId !== userId) {
+      return [];
+    }
+
+    const cacheKey = `goals:user:${userId}`;
+    
     const cached = await cache.get(cacheKey);
     if (cached) {
       return cached as GoalWithNumbers[];
@@ -935,6 +953,16 @@ export async function updateGoal(
   data: { name?: string; target_amount?: number; current_amount?: number; deadline?: Date | null }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Verify the session user owns this goal
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    const [existingGoal] = await db.select({ user_id: financial_goals.user_id }).from(financial_goals).where(eq(financial_goals.id, id));
+    if (!existingGoal || existingGoal.user_id !== session.userId) {
+      return { success: false, error: 'Goal not found or unauthorized' };
+    }
+
     await db
       .update(financial_goals)
       .set({
@@ -943,7 +971,7 @@ export async function updateGoal(
         ...(data.current_amount !== undefined && { current_amount: data.current_amount.toString() }),
         ...(data.deadline !== undefined && { deadline: data.deadline }),
       })
-      .where(eq(financial_goals.id, id));
+      .where(and(eq(financial_goals.id, id), eq(financial_goals.user_id, session.userId)));
     revalidatePath('/goals');
     revalidatePath('/');
     revalidatePath('/admin');
@@ -956,7 +984,17 @@ export async function updateGoal(
 
 export async function deleteGoal(id: number): Promise<{ success: boolean; error?: string }> {
   try {
-    await db.delete(financial_goals).where(eq(financial_goals.id, id));
+    // Verify the session user owns this goal
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    const [existingGoal] = await db.select({ user_id: financial_goals.user_id }).from(financial_goals).where(eq(financial_goals.id, id));
+    if (!existingGoal || existingGoal.user_id !== session.userId) {
+      return { success: false, error: 'Goal not found or unauthorized' };
+    }
+
+    await db.delete(financial_goals).where(and(eq(financial_goals.id, id), eq(financial_goals.user_id, session.userId)));
     revalidatePath('/');
     return { success: true };
   } catch (error) {
