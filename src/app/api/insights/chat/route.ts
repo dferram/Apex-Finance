@@ -101,13 +101,13 @@ ${context.goals.length > 0
 
 Respond conversationally, as an expert financial advisor who knows the user's situation.`;
 
-    // Construir el historial de conversación
+    // Build conversation history
     const chatHistory = messages.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.content }],
     }));
 
-    // Iniciar chat con historial
+    // Start chat with history
     const chat = model.startChat({
       history: [
         {
@@ -118,17 +118,17 @@ Respond conversationally, as an expert financial advisor who knows the user's si
           role: 'model',
           parts: [{ text: 'Understood. I\'m Apex AI, your financial advisor. I\'ve analyzed your financial situation and I\'m ready to help you optimize your finances. How can I assist you today?' }],
         },
-        ...chatHistory.slice(0, -1), // Excluir el último mensaje del usuario
+        ...chatHistory.slice(0, -1), // Exclude last user message
       ],
     });
 
-    // Obtener el último mensaje del usuario
+    // Get last user message
     const lastUserMessage = messages[messages.length - 1]?.content || '';
 
-    // Generar respuesta con streaming
+    // Generate response with streaming
     const result = await chat.sendMessageStream(lastUserMessage);
 
-    // Crear un stream de respuesta
+    // Create response stream
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {

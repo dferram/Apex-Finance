@@ -28,6 +28,8 @@ export default function ReportsPage() {
   const [filterRange, setFilterRange] = useState<'day' | 'week' | 'month' | 'budget'>('month');
   const [reportReady, setReportReady] = useState(false);
   const [chartData, setChartData] = useState<ReportChartItem[]>([]);
+  const [aiInsight, setAiInsight] = useState<string>('Generating AI insights...');
+  const [isLoadingInsight, setIsLoadingInsight] = useState(false);
 
   // Load and refresh report data when opening Reports; fetch chart data from server so it always has data.
   // Single effect handles both initial mount and filterRange changes (removed duplicate useEffect).
@@ -81,21 +83,64 @@ export default function ReportsPage() {
     ? profitMetrics.annualRevenue - profitMetrics.annualExpenses 
     : 0;
 
-  const projectionMessage = useMemo(() => {
-    if (!activeWorkspace || isInitializing) return "Calculating projections...";
+  // Generate AI insights using Gemini
+  useEffect(() => {
+    if (!activeWorkspace || isInitializing || !reportReady) return;
     
-    if (activeWorkspace.is_professional) {
-      if (!profitMetrics) return "Not enough data to calculate runway.";
-      const burnRate = profitMetrics.monthlyExpenses - profitMetrics.monthlyRevenue;
-      if (burnRate <= 0) return "Runway is stable. Operations are profitable.";
-      const runwayMonths = Math.max(0, stats.totalBalance / burnRate);
-      return `Current runway is approximately ${runwayMonths.toFixed(1)} months at current burn rate.`;
-    } else {
-      const netMonthly = stats.totalIncome - stats.totalExpense;
-      if (netMonthly <= 0) return "Warning: Monthly expenses currently exceed income.";
-      return `At current rate, you are saving $${netMonthly.toLocaleString('en-US', { minimumFractionDigits: 2 })} monthly.`;
-    }
-  }, [activeWorkspace, isInitializing, profitMetrics, stats]);
+    const generateInsight = async () => {
+      setIsLoadingInsight(true);
+      try {
+        const response = await fetch('/api/insights/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workspaceName: activeWorkspace.name,
+            isProfessional: activeWorkspace.is_professional,
+            totalBalance: stats.totalBalance,
+            totalIncome: stats.totalIncome,
+            totalExpense: stats.totalExpense,
+            weeklyExpense: stats.weeklyExpense,
+            transactionCount: transactions.length,
+            essentialRatio,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAiInsight(data.insight);
+        } else {
+          // Fallback to static message
+          if (activeWorkspace.is_professional) {
+            if (!profitMetrics) {
+              setAiInsight("Not enough data to calculate runway.");
+            } else {
+              const burnRate = profitMetrics.monthlyExpenses - profitMetrics.monthlyRevenue;
+              if (burnRate <= 0) {
+                setAiInsight("Runway is stable. Operations are profitable.");
+              } else {
+                const runwayMonths = Math.max(0, stats.totalBalance / burnRate);
+                setAiInsight(`Current runway is approximately ${runwayMonths.toFixed(1)} months at current burn rate.`);
+              }
+            }
+          } else {
+            const netMonthly = stats.totalIncome - stats.totalExpense;
+            if (netMonthly <= 0) {
+              setAiInsight("Warning: Monthly expenses currently exceed income.");
+            } else {
+              setAiInsight(`At current rate, you are saving $${netMonthly.toLocaleString('en-US', { minimumFractionDigits: 2 })} monthly.`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error generating AI insight:', error);
+        setAiInsight("Unable to generate insights at this time.");
+      } finally {
+        setIsLoadingInsight(false);
+      }
+    };
+
+    generateInsight();
+  }, [activeWorkspace, isInitializing, reportReady, stats, transactions.length, essentialRatio, profitMetrics]);
 
   const treeData = useMemo(() => {
     const map: Record<number, TreeItem> = {};
@@ -390,18 +435,31 @@ export default function ReportsPage() {
              </CardContent>
            </Card>
            
-           <Card className="glass-panel flex-1 bg-workspace text-white border-0 shadow-lg relative overflow-hidden">
+           <Card className="glass-panel flex-1 bg-gradient-to-br from-purple-600 to-blue-600 text-white border-0 shadow-lg relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-20">
                  <Sparkles className="h-24 w-24" />
               </div>
               <CardHeader className="pb-2 relative z-10">
-                 <CardTitle className="text-sm font-medium text-white/80">Projections Engine</CardTitle>
+                 <div className="flex items-center justify-between">
+                   <CardTitle className="text-sm font-medium text-white/80">AI Financial Insights</CardTitle>
+                   <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm">
+                     <Sparkles className="h-3 w-3 text-white" />
+                     <span className="text-xs font-medium text-white">Powered by Gemini</span>
+                   </div>
+                 </div>
               </CardHeader>
               <CardContent className="relative z-10">
-                 <div className="text-xl font-bold leading-tight">
-                   {projectionMessage}
+                 <div className="text-xl font-bold leading-tight min-h-[60px] flex items-center">
+                   {isLoadingInsight ? (
+                     <div className="flex items-center gap-2">
+                       <Loader2 className="h-5 w-5 animate-spin" />
+                       <span>Analyzing your finances...</span>
+                     </div>
+                   ) : (
+                     aiInsight
+                   )}
                  </div>
-                 <Button variant="secondary" size="sm" className="mt-6 w-full font-semibold border-0 text-workspace hover:bg-white/90">
+                 <Button variant="secondary" size="sm" className="mt-6 w-full font-semibold border-0 text-purple-600 hover:bg-white/90">
                    Generate Full Report
                  </Button>
               </CardContent>
