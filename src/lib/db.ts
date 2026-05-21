@@ -17,14 +17,16 @@ const pool = fixedConnectionString
       ssl: fixedConnectionString.includes('azure.com') 
         ? { rejectUnauthorized: false }
         : false,
-      // Optimized connection pool settings
-      max: 10, // Reduced from 20 to avoid overhead
-      min: 2, // Keep 2 connections warm
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000, // Reduced from 10s to 5s
-      // Keep connections alive
+      // Optimized connection pool settings for Azure
+      max: 20, // Increased for better concurrency
+      min: 5, // Keep more connections warm
+      idleTimeoutMillis: 60000, // 1 minute
+      connectionTimeoutMillis: 10000, // 10 seconds
+      // Keep connections alive to avoid reconnection overhead
       keepAlive: true,
-      keepAliveInitialDelayMillis: 10000,
+      keepAliveInitialDelayMillis: 5000,
+      // Statement timeout to prevent hanging queries
+      statement_timeout: 30000, // 30 seconds
     })
   : new Pool({ 
       connectionString: 'postgresql://dummy:dummy@localhost:5432/dummy',
@@ -47,7 +49,7 @@ if (fixedConnectionString) {
     console.log(`Database: ${url.pathname.slice(1)}`);
     console.log(`User: ${url.username}`);
     console.log(`SSL: ${isAzure ? 'Enabled (verify-full)' : 'Disabled'}`);
-    console.log(`Pool: min=${pool.options.min}, max=${pool.options.max}`);
+    console.log(`Pool: min=${pool.options.min}, max=${pool.options.max}, timeout=${pool.options.connectionTimeoutMillis}ms`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   } catch (err) {
     console.error('WARNING: Error parsing DATABASE_URL:', err);
