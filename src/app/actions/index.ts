@@ -620,14 +620,18 @@ export async function createTransaction(data: CreateTransactionData) {
         })
         .where(eq(wallets.id, data.wallet_id));
       
-      // Invalidate wallet and stats cache
+      // Invalidate all related caches
       await Promise.all([
         cache.delPattern(`wallets:workspace:*`),
-        cache.delPattern(`stats:workspace:*`)
+        cache.delPattern(`stats:workspace:*`),
+        cache.delPattern(`transactions:workspace:*`)
       ]);
     } else {
-      // Invalidate stats cache even if no wallet
-      await cache.delPattern(`stats:workspace:*`);
+      // Invalidate stats and transactions cache even if no wallet
+      await Promise.all([
+        cache.delPattern(`stats:workspace:*`),
+        cache.delPattern(`transactions:workspace:*`)
+      ]);
     }
 
     revalidatePath('/');
@@ -724,8 +728,12 @@ export async function createCategory(data: { workspace_id: number; name: string;
       is_project: validation.data.is_project ?? false,
     }).returning();
     
-    // Invalidate cache
-    await invalidateCache([`categories:workspace:${validation.data.workspace_id}`]);
+    // Invalidate cache (including hierarchical)
+    await invalidateCache([
+      `categories:workspace:${validation.data.workspace_id}`,
+      `categories:hierarchical:*`,
+      `category_totals:*`
+    ]);
     
     revalidatePath('/');
     return { success: true, category };
@@ -842,6 +850,11 @@ export async function moveCategoryParent(
   newParentId: number | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Prevent category from being its own parent
+    if (newParentId === categoryId) {
+      return { success: false, error: 'A category cannot be its own parent.' };
+    }
+
     // Cycle detection: newParentId must not be a descendant of categoryId
     if (newParentId !== null) {
       const descendants = await db.execute(sql`
@@ -854,10 +867,18 @@ export async function moveCategoryParent(
       `);
       const descendantIds = (descendants.rows as { id: number }[]).map(r => Number(r.id));
       if (descendantIds.includes(newParentId)) {
-        return { success: false, error: 'No se puede mover una categoría dentro de sus propios descendientes.' };
+        return { success: false, error: 'Cannot move a category into its own descendants.' };
       }
     }
     await db.update(categories).set({ parent_id: newParentId }).where(eq(categories.id, categoryId));
+    
+    // Invalidate cache
+    await invalidateCache([
+      `categories:workspace:*`,
+      `categories:hierarchical:*`,
+      `category_totals:*`
+    ]);
+    
     revalidatePath('/');
     revalidatePath('/categories');
     return { success: true };
