@@ -1,6 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
+import { cache } from '@/lib/redis';
 import { workspaces, transactions, categories, financial_goals, partners, type Category, type TransactionWithCategory, type GoalWithNumbers } from '@/lib/schema';
 import { eq, desc, sum, sql, and, gte } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -12,9 +13,30 @@ export interface CategoryNode extends Category {
   level: number;
 }
 
+// Helper to invalidate cache
+async function invalidateCache(patterns: string[]) {
+  for (const pattern of patterns) {
+    await cache.delPattern(pattern);
+  }
+}
+
 export async function getWorkspaces() {
+  const cacheKey = 'workspaces:all';
+  
   try {
+    // Try to get from cache first
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log('🔴 Using Redis cache for workspaces');
+      return cached as typeof workspaces.$inferSelect[];
+    }
+
+    console.log('📊 Fetching workspaces from database');
     const data = await db.select().from(workspaces).orderBy(workspaces.is_professional, desc(workspaces.id));
+    
+    // Cache for 5 minutes
+    await cache.set(cacheKey, data, 300);
+    
     return data;
   } catch (error) {
     console.error('Error fetching workspaces:', error);
@@ -23,8 +45,22 @@ export async function getWorkspaces() {
 }
 
 export async function getCategories(workspaceId: number) {
+  const cacheKey = `categories:workspace:${workspaceId}`;
+  
   try {
+    // Try cache first
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      console.log(`🔴 Using Redis cache for categories (workspace ${workspaceId})`);
+      return cached as Category[];
+    }
+
+    console.log(`📊 Fetching categories from database (workspace ${workspaceId})`);
     const data = await db.select().from(categories).where(eq(categories.workspace_id, workspaceId)).orderBy(categories.name);
+    
+    // Cache for 5 minutes
+    await cache.set(cacheKey, data, 300);
+    
     return data;
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -617,6 +653,10 @@ export async function createCategory(data: { workspace_id: number; name: string;
       parent_id: validation.data.parent_id ?? null,
       is_project: validation.data.is_project ?? false,
     }).returning();
+    
+    // Invalidate cache
+    await invalidateCache([`categories:workspace:${validation.data.workspace_id}`]);
+    
     revalidatePath('/');
     return { success: true, category };
   } catch (error) {
