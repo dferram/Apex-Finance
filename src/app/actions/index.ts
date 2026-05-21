@@ -581,6 +581,27 @@ export async function createTransaction(data: CreateTransactionData) {
       return { success: false, error: firstError };
     }
 
+    // Validate wallet balance BEFORE inserting transaction
+    if (data.wallet_id) {
+      const [wallet] = await db.select().from(wallets).where(eq(wallets.id, data.wallet_id));
+      
+      if (!wallet) {
+        return { success: false, error: 'Wallet not found' };
+      }
+
+      const currentBalance = Number(wallet.balance || 0);
+      const newBalance = currentBalance + validation.data.amount;
+
+      // Prevent negative balance
+      if (newBalance < 0) {
+        return { 
+          success: false, 
+          error: `Insufficient funds. Current balance: $${currentBalance.toFixed(2)}, Transaction amount: $${Math.abs(validation.data.amount).toFixed(2)}` 
+        };
+      }
+    }
+
+    // Insert transaction
     await db.insert(transactions).values({
       workspace_id: validation.data.workspace_id,
       category_id: validation.data.category_id,
