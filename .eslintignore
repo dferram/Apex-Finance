@@ -1,8 +1,8 @@
-node_modules
-.next
-out
-build
-dist
-*.config.js
+node_modules/
+.next/
+out/
+build/
+dist/
 server.js
 deploy.sh
+scripts/
