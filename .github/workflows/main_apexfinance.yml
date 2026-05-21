@@ -44,26 +44,17 @@ jobs:
             exit 1
           fi
 
-      - name: Create deployment package
+      - name: Zip deployment package
         run: |
-          echo "Creating deployment package..."
-          mkdir -p deploy
-          cp -r .next deploy/
-          cp -r public deploy/
-          cp -r node_modules deploy/
-          cp package.json deploy/
-          cp package-lock.json deploy/
-          cp server.js deploy/
-          cp next.config.mjs deploy/
-          echo "Package contents:"
-          ls -la deploy/
-          ls -la deploy/.next/
+          echo "Creating zip package..."
+          zip -r deployment.zip .next public node_modules package.json package-lock.json server.js next.config.mjs
+          ls -lh deployment.zip
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: deploy/
+          path: deployment.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -78,13 +69,19 @@ jobs:
         with:
           name: node-app
       
+      - name: Extract deployment package
+        run: |
+          echo "Extracting deployment.zip..."
+          unzip -q deployment.zip
+          rm deployment.zip
+          echo "Extracted files:"
+          ls -la
+      
       - name: Verify downloaded artifacts
         run: |
           echo "Verifying artifacts..."
-          ls -la
           if [ -d ".next" ]; then
             echo "✅ .next directory exists"
-            ls -la .next/
             if [ -f ".next/BUILD_ID" ]; then
               echo "✅ BUILD_ID found"
             else
