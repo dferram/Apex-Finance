@@ -66,17 +66,17 @@ export default function CategoriesPage() {
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
             <Boxes className="h-8 w-8 text-workspace" />
-            Gestión de Categorías
+            Category Management
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Configura y organiza tu estructura financiera jerárquica. Arrastra categorías para reorganizar.
+            Configure and organize your hierarchical financial structure. Drag categories to reorganize.
           </p>
         </div>
         
         <CategoryDialog>
           <Button className="bg-workspace text-white hover:bg-workspace/90 shadow-lg shadow-workspace/20 h-11 px-6">
             <Plus className="h-5 w-5 mr-2" />
-            Nueva Categoría Raíz
+            New Root Category
           </Button>
         </CategoryDialog>
       </div>
@@ -108,7 +108,7 @@ export default function CategoriesPage() {
                         <button 
                           onClick={(e) => e.stopPropagation()} 
                           className="p-1 hover:bg-workspace/20 rounded text-workspace transition-colors"
-                          title="Agregar sub-categoría"
+                          title="Add subcategory"
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </button>
