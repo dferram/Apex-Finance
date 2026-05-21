@@ -555,6 +555,7 @@ export async function getReportChartData(
 interface CreateTransactionData {
   workspace_id: number;
   category_id: number;
+  wallet_id?: number;
   amount: number;
   description: string;
   date?: Date | string;
@@ -592,11 +593,24 @@ export async function createTransaction(data: CreateTransactionData) {
     await db.insert(transactions).values({
       workspace_id: validation.data.workspace_id,
       category_id: validation.data.category_id,
+      wallet_id: data.wallet_id || null,
       amount: validation.data.amount.toString(),
       description: validation.data.description,
       date: validation.data.date,
       is_essential: validation.data.is_essential,
-    });
+    }).returning();
+
+    // Update wallet balance if wallet_id is provided
+    if (data.wallet_id) {
+      await db.update(wallets)
+        .set({
+          balance: sql`CAST(${wallets.balance} AS NUMERIC) + ${validation.data.amount}`,
+        })
+        .where(eq(wallets.id, data.wallet_id));
+      
+      // Invalidate wallet cache
+      await cache.delPattern(`wallets:workspace:*`);
+    }
 
     revalidatePath('/');
     return { success: true };
@@ -1052,6 +1066,10 @@ export async function createWallet(data: { workspace_id: number; name: string; c
       currency: data.currency || 'MXN',
       balance: data.initial_balance?.toString() || '0',
     }).returning();
+    
+    // Invalidate wallet cache
+    await cache.delPattern(`wallets:workspace:${data.workspace_id}`);
+    
     revalidatePath('/wallets');
     return { success: true, wallet };
   } catch (error) {
