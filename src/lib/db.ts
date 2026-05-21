@@ -34,20 +34,24 @@ const pool = fixedConnectionString
 
 // Detailed logging for database connection
 if (fixedConnectionString) {
-  const isAzure = fixedConnectionString.includes('azure.com');
-  const url = new URL(fixedConnectionString.replace('postgresql://', 'http://'));
-  
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📊 DATABASE CONNECTION');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`🔹 Type: ${isAzure ? 'Azure PostgreSQL' : 'Local PostgreSQL'}`);
-  console.log(`🔹 Host: ${url.hostname}`);
-  console.log(`🔹 Port: ${url.port || '5432'}`);
-  console.log(`� Database: ${url.pathname.slice(1)}`);
-  console.log(`🔹 User: ${url.username}`);
-  console.log(`🔹 SSL: ${isAzure ? 'Enabled (verify-full)' : 'Disabled'}`);
-  console.log(`🔹 Pool: min=${pool.options.min}, max=${pool.options.max}`);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  try {
+    const isAzure = fixedConnectionString.includes('azure.com');
+    const url = new URL(fixedConnectionString.replace('postgresql://', 'http://'));
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📊 DATABASE CONNECTION');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`🔹 Type: ${isAzure ? 'Azure PostgreSQL' : 'Local PostgreSQL'}`);
+    console.log(`🔹 Host: ${url.hostname}`);
+    console.log(`🔹 Port: ${url.port || '5432'}`);
+    console.log(`🔹 Database: ${url.pathname.slice(1)}`);
+    console.log(`🔹 User: ${url.username}`);
+    console.log(`🔹 SSL: ${isAzure ? 'Enabled (verify-full)' : 'Disabled'}`);
+    console.log(`🔹 Pool: min=${pool.options.min}, max=${pool.options.max}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  } catch (err) {
+    console.error('⚠️  Error parsing DATABASE_URL:', err);
+  }
 } else {
   console.log('⚠️  DATABASE_URL not configured (build mode)\n');
 }
