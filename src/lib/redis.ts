@@ -31,19 +31,34 @@ if (restUrl && restToken) {
   }
 } else if (redisUrl) {
   // Redis protocol connection (rediss://)
+  // Parse the URL to extract REST endpoint and token
   try {
-    redis = Redis.fromEnv();
+    // Upstash Redis URL format: rediss://default:TOKEN@HOST:PORT
+    const match = redisUrl.match(/rediss?:\/\/([^:]+):([^@]+)@([^:]+):(\d+)/);
+    
+    if (match) {
+      const [, , token, host] = match;
+      const restUrl = `https://${host}`;
+      
+      redis = new Redis({
+        url: restUrl,
+        token: token,
+      });
 
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔴 REDIS CONNECTION');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔹 Status: Connected');
-    console.log('🔹 Type: Redis Protocol');
-    console.log('🔹 Provider: Upstash');
-    console.log('🔹 URL:', redisUrl.substring(0, 30) + '...');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔴 REDIS CONNECTION');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔹 Status: Connected');
+      console.log('🔹 Type: REST API (from REDIS_URL)');
+      console.log('🔹 Provider: Upstash');
+      console.log('🔹 Host:', host);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    } else {
+      console.error('❌ Invalid REDIS_URL format. Expected: rediss://default:TOKEN@HOST:PORT');
+      redis = null;
+    }
   } catch (error) {
-    console.error('❌ Redis protocol initialization error:', error);
+    console.error('❌ Redis initialization error:', error);
     redis = null;
   }
 } else {
