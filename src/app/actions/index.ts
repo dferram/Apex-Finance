@@ -35,11 +35,8 @@ export async function getWorkspaces() {
     // Try to get from cache first
     const cached = await cache.get(cacheKey);
     if (cached) {
-      console.log('[Cache] Using Redis cache for workspaces');
       return cached as typeof workspaces.$inferSelect[];
     }
-
-    console.log('[Database] Fetching workspaces from database');
     const data = await db.select().from(workspaces).orderBy(workspaces.is_professional, desc(workspaces.id));
     
     // Cache for 5 minutes
@@ -59,11 +56,8 @@ export async function getCategories(workspaceId: number) {
     // Try cache first
     const cached = await cache.get(cacheKey);
     if (cached) {
-      console.log(`[Cache] Using Redis cache for categories (workspace ${workspaceId})`);
       return cached as Category[];
     }
-
-    console.log(`[Database] Fetching categories from database (workspace ${workspaceId})`);
     const data = await db.select().from(categories).where(eq(categories.workspace_id, workspaceId)).orderBy(categories.name);
     
     // Cache for 5 minutes
@@ -148,11 +142,8 @@ export async function getTransactions(workspaceId: number, limit?: number) {
   try {
     const cached = await cache.get(cacheKey);
     if (cached) {
-      console.log(`[Cache] Using Redis cache for transactions (workspace ${workspaceId})`);
       return cached as TransactionWithCategory[];
     }
-
-    console.log(`[Database] Fetching transactions from database (workspace ${workspaceId})`);
     const baseQuery = db
       .select({
         id: transactions.id,
@@ -739,11 +730,8 @@ export async function getFinancialGoals(userId: number) {
   try {
     const cached = await cache.get(cacheKey);
     if (cached) {
-      console.log(`[Cache] Using Redis cache for goals (user ${userId})`);
       return cached as GoalWithNumbers[];
     }
-
-    console.log(`[Database] Fetching goals from database (user ${userId})`);
     const data = await db.select().from(financial_goals).where(eq(financial_goals.user_id, userId));
     const result = data.map(g => ({
       ...g,
@@ -920,11 +908,8 @@ export async function getPartners(workspaceId: number) {
   try {
     const cached = await cache.get(cacheKey);
     if (cached) {
-      console.log(`[Cache] Using Redis cache for partners (workspace ${workspaceId})`);
       return cached as typeof partners.$inferSelect[];
     }
-
-    console.log(`[Database] Fetching partners from database (workspace ${workspaceId})`);
     const data = await db.select().from(partners).where(eq(partners.workspace_id, workspaceId)).orderBy(desc(partners.percentage));
     
     await cache.set(cacheKey, data, 300); // 5 minutes
@@ -1043,11 +1028,8 @@ export async function getWallets(workspaceId: number) {
   try {
     const cached = await cache.get(cacheKey);
     if (cached) {
-      console.log(`[Cache] Using Redis cache for wallets (workspace ${workspaceId})`);
       return cached as typeof wallets.$inferSelect[];
     }
-
-    console.log(`[Database] Fetching wallets from database (workspace ${workspaceId}`);
     const data = await db.select().from(wallets).where(eq(wallets.workspace_id, workspaceId)).orderBy(desc(wallets.created_at));
     
     await cache.set(cacheKey, data, 300); // 5 minutes
