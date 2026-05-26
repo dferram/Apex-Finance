@@ -274,3 +274,5 @@ psql -U tu_usuario -d apex_finance < backup.sql
 ## Licencia
 
 Este proyecto es privado. Todos los derechos reservados © 2026 xCore.
+
+## Link: [Apex Finance](https://apexfinance-cmaedde6fnb6ffcs.mexicocentral-01.azurewebsites.net/)
