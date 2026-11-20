@@ -174,12 +174,8 @@ npm run db:add-password-column
 Luego, actualiza la contraseña del usuario existente:
 
 ```bash
-npm run db:update-password dferramm@gmail.com admin123
+npm run db:update-password <tu-email> <tu-contraseña>
 ```
-
-**Credenciales de prueba:**
-- Email: `dferramm@gmail.com`
-- Contraseña: `admin123`
 
 Para más información sobre autenticación, consulta [`QUICK_START_AUTH.md`](./QUICK_START_AUTH.md)
 
@@ -273,6 +269,6 @@ psql -U tu_usuario -d apex_finance < backup.sql
 
 ## Licencia
 
-Este proyecto es privado. Todos los derechos reservados © 2026 xCore.
+Todos los derechos reservados © 2026 Fernando Ramírez.
 
 ## Link: [Apex Finance](https://apexfinance-cmaedde6fnb6ffcs.mexicocentral-01.azurewebsites.net/)
